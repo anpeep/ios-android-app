@@ -1,0 +1,16 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+<style name="Base.Theme.Kaver" parent="Theme.Material3.DayNight.NoActionBar">
+    <item name="colorPrimary">@color/darkGreen</item>
+    <item name="colorOnPrimary">@color/white</item>
+
+    <item name="colorSecondary">@color/darkPink</item>
+    <item name="colorOnSecondary">@color/white</item>
+
+    <item name="colorTertiary">@color/darkBlue</item>
+    <item name="colorOnTertiary">@color/white</item>
+
+    <item name="android:colorBackground">@color/white</item>
+</style>
+
+<style name="Theme.Kaver" parent="Base.Theme.Kaver" />
+</resources>

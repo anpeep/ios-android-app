@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="darkGreen">#77DD76</color>
+    <color name="lightGreen">#BBF1C4</color>
+    <color name="whiteGreen">#E0F6E3</color>
+    <color name="darkPink">#F49AC2</color>
+    <color name="lightPink">#F4B5C7</color>
+    <color name="Beige">#F4D0D5</color>
+
+    <color name="yellow">#FFD93D</color>
+    <color name="darkYellow">#F4B400</color>
+
+    <color name="red">#FF3B30</color>
+    <color name="darkRed">#C62828</color>
+    <color name="darkBlue">#2D3A6E</color>
+    <color name="purple">#6A5ACD</color>
+    <color name="indigo">#3F51B5</color>
+
+    <color name="textPrimary">#FFFFFF</color> <!-- valge -->
+    <color name="textSecondary">#D0D0D0</color> <!-- hallikas -->
+    <color name="highlight">#FFD93D</color> <!-- kollane rõhutusteks -->
+
+    <color name="winGlow">#00E676</color> <!-- neoonroheline -->
+    <color name="loseGlow">#FF1744</color> <!-- erksinine-punane -->
+    <color name="neutralGray">#9E9E9E</color> <!-- neutraalne hall -->
+
+</resources>
