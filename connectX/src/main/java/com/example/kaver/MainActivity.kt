@@ -1,191 +1,190 @@
 package com.example.kaver
 
-import android.content.BroadcastReceiver
-import android.content.Context
+import android.content.ComponentName
 import android.content.Intent
-import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
-import android.os.PersistableBundle
+import android.os.IBinder
 import android.util.Log
 import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import android.widget.GridLayout
 import android.widget.TextView
 import android.widget.Toast
 import android.widget.ToggleButton
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
-
-//    var mutable variable
-// val constant variable
-// konstruktori muutujasse saab private sisse kirjutada, koodi ei saa sinna kirjutad
-// peab konstruktorisse init {} või mitu paneme
-// keyword constructor primaryga kutsud
-// companion object
-// saab olla null String?
-// puudub ternary, kõik tagastab midagi mitte ? True : False
-// let kui bl on väärtus
-// let ja it tagastavad nagu return
-// elvis kui ei olnud nii ?: s
-// with(person { ei pea person.name = asja ja viimase rea väärtus tagastatakse returnita. muidu return
-// apply muudab this.parameeter otse välja kui ennem tehtud var
-// also ei muuda tagastatavat objekti aga saab välja kutsuda
-// takeif kui tingimus vastab tõele
-// activity on 1 ekraanivaade, peab manifestis deklareerima
-// üks acticty Main
-// oncreate UI.
-// new pole
-// startActivityFOrResult
-// createChooser vali rakendus kuidas sõnumit saata
-// intent filter mida ma tahan vastu võtta, mis data, mis liiki sõnumid, mis kategoorias
-// START_STICKY peab taustal tööle jääma kui mingi error ja START_REDELIVER_INTENT
-// onPausis registerRecifer logimine kordistub LocalBroadcastManager sest kõik instantsid saavad sõnumi, mitte panna onResume või onPaus ära võtta
-// activity vajutad nupu läheb taustateenus mille peale hakkab saatma sõnumit. nupust käima ja nupust seisma. Broadcastimisega infovahetus. saadab kuupäeva kellaaega taustateenusest. add new service alt.
-
-// kolm levelit (easy, med, hard) ehk 3 incude tagi. includeis peab üle kirjutama android:layot height ja width, match parent?
-// selleks et rotatida, on res kataloogis ./layout
-// kui xmliss ainult 1 asi siis failinime järgi leiab
-// kui süsteemile jätta scaling siis kaotab resulatsiooni.
-// res/layout_xlarge_land/my_layout.xml
-// kui kõik toimub ühe layouti pealt siis pole vaja teha seda konfigutatsiooni ja pole katoloogi vaja
-// pole vaja teha muutumatut teksti composableiks. jetbackis paned construktori ja recreatid sama konstruktori uue instantsiga
-// @composable ei tagasta midagi. teda saab kutsuda teise composable poolt
-// column ja row ja box on composable function ja sinna sisse saad panna composable elements
-// modifier tähendab et update. Modifier.clip(circleShape) või Modifier.align(bottom)
-// modifier saad sa ka kuju ja värvi disainida
-
-import android.content.*
-import android.widget.*
-
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var gridSmall: GridLayout
-    private lateinit var gridMedium: GridLayout
-    private lateinit var gridLarge: GridLayout
-
-    private lateinit var buttonEasy: Button
-    private lateinit var buttonMedium: Button
-    private lateinit var buttonHard: Button
+    private val allGrids: List<GridLayout> by lazy {
+        listOf(
+            findViewById(R.id.gridLayoutSmall),
+            findViewById(R.id.gridLayoutMedium),
+            findViewById(R.id.gridLayoutLarge)
+        )
+    }
+    private lateinit var activeGrid: GridLayout
+    private lateinit var difficultyButtons: List<Button>
     private lateinit var timerText: TextView
-    private lateinit var broadcastReceiver: BroadcastReceiver
+    private lateinit var timerService: TimerService
+    private var isBound = false
     private lateinit var turnText: TextView
     private lateinit var currentGame: GameBoard
-    private var gameActive = false //
+    private var gameActive = false
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            val binder = service as TimerService.TimerBinder
+            timerService = binder.service
+            isBound = true
+
+            lifecycleScope.launch {
+                timerService.timeFlow.collect { time ->
+                    timerText.text = time
+                }
+            }
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            isBound = false
+        }
+    }
+
+    companion object {
+        private const val CELL_SIZE_DP = 80
+        private const val CELL_MARGIN_DP = 2
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.gamescreen)
 
         timerText = findViewById(R.id.timerText)
-        turnText = findViewById(R.id.whosturn)
-        // Register service time updates (if you use DemoService)
-        broadcastReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == C.IntentBackgroundServiceTime) {
-                    val time = intent.getStringExtra(C.IntentBackgroundServiceTimePayload)
-                    timerText.text = time
-                }
-            }
-        }
-        LocalBroadcastManager.getInstance(this)
-            .registerReceiver(broadcastReceiver, IntentFilter(C.IntentBackgroundServiceTime))
+        turnText = findViewById(R.id.turn)
+        difficultyButtons = listOf(
+            findViewById(R.id.buttonEasy),
+            findViewById(R.id.buttonMedium),
+            findViewById(R.id.buttonHard)
+        )
+        setupDifficultyButtons()
 
-        // Find all grids and buttons
-        gridSmall = findViewById(R.id.gridLayoutSmall)
-        gridMedium = findViewById(R.id.gridLayoutMedium)
-        gridLarge = findViewById(R.id.gridLayoutLarge)
-
-        buttonEasy = findViewById(R.id.buttonEasy)
-        buttonMedium = findViewById(R.id.buttonMedium)
-        buttonHard = findViewById(R.id.buttonHard)
-
-        // Hide all boards at start
-        gridSmall.visibility = View.GONE
-        gridMedium.visibility = View.GONE
-        gridLarge.visibility = View.GONE
-        updateTurnText(null)
-
-        // === Difficulty Buttons ===
-        buttonEasy.setOnClickListener {
-            startNewGame(SmallGame(), gridSmall)
-        }
-
-        buttonMedium.setOnClickListener {
-            startNewGame(MediumGame(), gridMedium)
-        }
-
-        buttonHard.setOnClickListener {
-            startNewGame(HardGame(), gridLarge)
+        if (savedInstanceState != null) {
+            restoreGameState(savedInstanceState)
+        } else {
+            Log.d("MainActivity", "No saved instance state, setting up initial view.")
+            updateTurnText(null)
         }
     }
 
-    private fun startNewGame(game: GameBoard, grid: GridLayout) {
-        if (gameActive) return // 🔒 ignore clicks if game already active
+    private fun restoreGameState(savedInstanceState: Bundle) {
+        Log.d("MainActivity", "Restoring from savedInstanceState")
+
+        gameActive = savedInstanceState.getBoolean("GAME_ACTIVE", false)
+        timerText.text = savedInstanceState.getString("TIMER_TEXT", "00:00")
+
+        if (!gameActive) {
+            updateTurnText(null)
+            allGrids.forEach { it.visibility = View.GONE }
+            difficultyButtons.forEach { it.visibility = View.VISIBLE }
+            return
+        }
+        currentGame = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            savedInstanceState.getSerializable("CURRENT_GAME", GameBoard::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            savedInstanceState.getSerializable("CURRENT_GAME") as? GameBoard
+        } ?: return
+        val gridId = when (currentGame) {
+            is SmallGame -> R.id.gridLayoutSmall
+            is MediumGame -> R.id.gridLayoutMedium
+            is HardGame -> R.id.gridLayoutLarge
+            else -> throw IllegalStateException("Unknown game type")
+        }
+        allGrids.forEach { it.visibility = View.GONE }
+        activeGrid = findViewById(gridId)
+        activeGrid.visibility = View.VISIBLE
+        difficultyButtons.forEach { it.visibility = View.GONE }
+        createBoard(activeGrid, currentGame)
+        updateBoardUI(activeGrid, currentGame)
+        updateTurnText(currentGame.currentPlayer)
+
+        Log.d("MainActivity", "Re-binding to TimerService after restoring active game.")
+        Intent(this, TimerService::class.java).also { intent ->
+            bindService(intent, connection, BIND_AUTO_CREATE)
+        }
+    }
+
+    private fun setupDifficultyButtons() {
+        difficultyButtons[0].setOnClickListener {
+            startNewGame(SmallGame(), R.id.gridLayoutSmall)
+        }
+        difficultyButtons[1].setOnClickListener {
+            startNewGame(MediumGame(), R.id.gridLayoutMedium)
+        }
+        difficultyButtons[2].setOnClickListener {
+            startNewGame(HardGame(), R.id.gridLayoutLarge)
+        }
+    }
+
+    private fun startNewGame(game: GameBoard, gridId: Int) {
+        if (gameActive) return
+
+        Intent(this, TimerService::class.java).also { intent ->
+            intent.action = TimerService.ACTION_START_FRESH
+            startService(intent)
+        }
 
         gameActive = true
         currentGame = game
         Log.d("Game", "Started ${game.getGameName()} (${game.rows}x${game.cols})")
 
-        // 🔹 Hide difficulty buttons
-        buttonEasy.visibility = View.GONE
-        buttonMedium.visibility = View.GONE
-        buttonHard.visibility = View.GONE
+        difficultyButtons.forEach { it.visibility = View.GONE }
+        allGrids.forEach { it.visibility = View.GONE }
+        activeGrid = findViewById(gridId)
 
-        // 🔹 Show the selected board
-        showBoard(grid, game)
+        activeGrid.visibility = View.VISIBLE
+        createBoard(activeGrid, game)
         updateTurnText(game.currentPlayer)
-
-        startService(Intent(this, DemoService::class.java))
-    }
-
-    private fun showBoard(grid: GridLayout, game: GameBoard) {
-        // Hide other boards
-        gridSmall.visibility = View.GONE
-        gridMedium.visibility = View.GONE
-        gridLarge.visibility = View.GONE
-
-        // Show only the selected one
-        grid.visibility = View.VISIBLE
-
-        createBoard(grid, game)
-    }
-    fun updateTurnText(player: GameBoard.Player?) {
-        when (player) {
-            GameBoard.Player.RED -> {
-                turnText.setText(R.string.red_turn)
-                turnText.setTextColor(Color.rgb(244, 154, 194))
-            }
-            GameBoard.Player.YELLOW -> {
-                turnText.setText(R.string.blue_turn)
-                turnText.setTextColor(Color.rgb(45,58,110))
-            }
-            null -> {
-                turnText.setText(R.string.select_difficulty)
-                turnText.setTextColor(Color.DKGRAY)
+        Intent(this, TimerService::class.java).also { intent ->
+            bindService(intent, connection, BIND_AUTO_CREATE)
         }
+    }
 
-    }}
+    private fun getPlayerColor(player: GameBoard.Companion.Player?): Int {
+        return when (player) {
+            GameBoard.Companion.Player.RED -> R.color.red
+            GameBoard.Companion.Player.BLUE -> R.color.blue
+            else -> R.color.darkGreen
+        }
+    }
 
-    private fun updateBoardUI(
-        grid: GridLayout,
-        game: GameBoard,
-        buttons: Array<Array<ToggleButton?>>
-    ) {
+    fun updateTurnText(player: GameBoard.Companion.Player?) {
+        val textResId = when (player) {
+            GameBoard.Companion.Player.RED -> R.string.red_turn
+            GameBoard.Companion.Player.BLUE -> R.string.blue_turn
+            null -> R.string.select_difficulty
+        }
+        val colorResId = getPlayerColor(player)
+
+        turnText.setText(textResId)  // ContextCompat for colors
+        turnText.setTextColor(ContextCompat.getColor(this, colorResId))
+    }
+
+    private fun updateBoardUI(grid: GridLayout, game: GameBoard) {
         for (r in 0 until game.rows) {
             for (c in 0 until game.cols) {
                 val player = game.board[r][c]
-                val btn = buttons[r][c]
-                when (player) {
-                    GameBoard.Player.RED -> btn?.setBackgroundColor(Color.rgb(45,58,110))
-                    GameBoard.Player.YELLOW -> btn?.setBackgroundColor(Color.rgb(244, 154, 194))
-                    else -> btn?.setBackgroundColor(Color.LTGRAY)
+                val index = r * game.cols + c
+                val btn = grid.getChildAt(index) as? ToggleButton
+                val color = if (player != null) {
+                    ContextCompat.getColor(this, getPlayerColor(player))
+                } else {
+                    Color.LTGRAY
                 }
+                btn?.setBackgroundColor(color)
             }
         }
     }
@@ -195,279 +194,87 @@ class MainActivity : AppCompatActivity() {
         grid.rowCount = game.rows
         grid.columnCount = game.cols
 
-        val cellButtons = Array(game.rows) { arrayOfNulls<ToggleButton>(game.cols) }
-
         for (r in 0 until game.rows) {
             for (c in 0 until game.cols) {
                 val button = ToggleButton(this).apply {
                     id = View.generateViewId()
-                    text = ""
-                    textOn = ""
-                    textOff = ""
+                    text = ""; textOn = ""; textOff = ""
                     layoutParams = GridLayout.LayoutParams().apply {
-                        width = 100
-                        height = 100
+                        width = CELL_SIZE_DP
+                        height = CELL_SIZE_DP
                         rowSpec = GridLayout.spec(r, 1, 1f)
                         columnSpec = GridLayout.spec(c, 1, 1f)
-                        setMargins(2, 2, 2, 2)
+                        setMargins(CELL_MARGIN_DP, CELL_MARGIN_DP, CELL_MARGIN_DP, CELL_MARGIN_DP)
                     }
                     setBackgroundColor(Color.LTGRAY)
                 }
 
                 button.setOnClickListener {
-                    if (!gameActive) return@setOnClickListener
-                    val col = c
-                    val placed = game.placeToken(col)
-
-                    if (placed) {
-                        updateBoardUI(grid, game, cellButtons)
-
-                        // Check for winner or draw
-                        if (game.checkWinner()) {
-                            Toast.makeText(this, "${game.currentPlayer.name} wins!", Toast.LENGTH_LONG).show()
-                            endGame()
-                            updateTurnText(null)
-
-                            stopService(Intent(this, DemoService::class.java))
-                        } else if (game.isBoardFull()) {
-                            Toast.makeText(this, "It's a draw!", Toast.LENGTH_LONG).show()
-                            endGame()
-                            updateTurnText(null)
-                            stopService(Intent(this, DemoService::class.java))
-
-                        } else {
-
-                            game.switchPlayer()
-                            updateTurnText(game.currentPlayer)
-                        }
-                    } else {
-                        Toast.makeText(this, "Column full!", Toast.LENGTH_SHORT).show()
+                    it.takeIf { gameActive }?.let {
+                        handlePlayerMove(c, game)
                     }
                 }
-
                 grid.addView(button)
-                cellButtons[r][c] = button
             }
         }
     }
+
+    private fun handlePlayerMove(column: Int, game: GameBoard) {
+        val row = game.placeToken(column)  // row index or 0
+
+        if (row != null) {
+            updateBoardUI(activeGrid, game)
+            checkGameState(game, Pair(row, column))
+        } else {
+            Toast.makeText(this, "Full", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun checkGameState(game: GameBoard, lastMove: Pair<Int, Int>) {
+        val winner = game.checkWinner(lastMove)
+
+        if (winner) {
+            Toast.makeText(this, "${game.currentPlayer.name} won!", Toast.LENGTH_LONG).show()
+            endGame()
+        } else if (game.isBoardFull()) {
+            Toast.makeText(this, "Draw!", Toast.LENGTH_LONG).show()
+            endGame()
+        } else {
+            game.switchPlayer()
+            updateTurnText(game.currentPlayer)
+        }
+    }
+
     private fun endGame() {
         gameActive = false
         updateTurnText(null)
-
-        // 🔹 Hide all grids
-        gridSmall.visibility = View.GONE
-        gridMedium.visibility = View.GONE
-        gridLarge.visibility = View.GONE
-
-        // 🔹 Show difficulty buttons again
-        buttonEasy.visibility = View.VISIBLE
-        buttonMedium.visibility = View.VISIBLE
-        buttonHard.visibility = View.VISIBLE
+        if (isBound) {
+            unbindService(connection)
+            isBound = false
+        }
+        Log.d("MainActivity", "TimerService stopped.")
+        allGrids.forEach { it.visibility = View.GONE }
+        difficultyButtons.forEach { it.visibility = View.VISIBLE }
     }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        Log.d("MainActivity", "onSaveInstanceState called, gameActive is $gameActive")
+        outState.putBoolean("GAME_ACTIVE", gameActive)
+        outState.putBoolean("GAME_ACTIVE", gameActive)
+        outState.putString("TIMER_TEXT", timerText.text.toString())
+        if (this::currentGame.isInitialized) {
+            outState.putSerializable("CURRENT_GAME", currentGame)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isBound) {
+            Log.d("MainActivity", "onStop called, unbinding from service.")
+            unbindService(connection)
+            isBound = false
+        }
+    }
+
 }
-
-//
-//class MainActivity : AppCompatActivity() {
-//
-//
-//        private lateinit var gridSmall: GridLayout
-//        private lateinit var gridMedium: GridLayout
-//        private lateinit var gridLarge: GridLayout
-//
-//        private lateinit var buttonEasy: Button
-//        private lateinit var buttonMedium: Button
-//        private lateinit var buttonHard: Button
-//        private lateinit var timerText: TextView
-//        private lateinit var broadcastReceiver: BroadcastReceiver
-//
-//        override fun onCreate(savedInstanceState: Bundle?) {
-//            super.onCreate(savedInstanceState)
-//            setContentView(R.layout.gamescreen)
-//            timerText = findViewById(R.id.timerText)
-//
-//            // registreeri receiver
-//            broadcastReceiver = object : BroadcastReceiver() {
-//                override fun onReceive(context: Context?, intent: Intent?) {
-//                    if (intent?.action == C.IntentBackgroundServiceTime) {
-//                        val time = intent.getStringExtra(C.IntentBackgroundServiceTimePayload)
-//                        timerText.text = time
-//                    }
-//                }
-//            }
-//            LocalBroadcastManager.getInstance(this)
-//                .registerReceiver(broadcastReceiver, IntentFilter(C.IntentBackgroundServiceTime))
-//            // Leia kõik view-d
-//            gridSmall = findViewById(R.id.gridLayoutSmall)
-//            gridMedium = findViewById(R.id.gridLayoutMedium)
-//            gridLarge = findViewById(R.id.gridLayoutLarge)
-//
-//            buttonEasy = findViewById(R.id.buttoneasy)
-//            buttonMedium = findViewById(R.id.buttonMedium)
-//            buttonHard = findViewById(R.id.buttonHard)
-//
-//            // Alguses kõik lauad peidus
-//            gridSmall.visibility = View.GONE
-//            gridMedium.visibility = View.GONE
-//            gridLarge.visibility = View.GONE
-//
-//            // Easy -> 4x4
-//            buttonEasy.setOnClickListener {
-//                showBoard(gridSmall, 4, 4, "small")
-//                startService(Intent(this, DemoService::class.java))
-//            }
-//
-//            // Medium -> 7x6
-//            buttonMedium.setOnClickListener {
-//                showBoard(gridMedium, 7, 6, "medium")
-//                startService(Intent(this, DemoService::class.java))
-//            }
-//
-//            // Hard -> 10x10
-//            buttonHard.setOnClickListener {
-//                showBoard(gridLarge, 10, 10, "large")
-//                startService(Intent(this, DemoService::class.java))
-//            }
-//
-//        }
-//
-//        private fun showBoard(grid: GridLayout, rows: Int, cols: Int, prefix: String) {
-//            // Peidame kõik
-//            gridSmall.visibility = View.GONE
-//            gridMedium.visibility = View.GONE
-//            gridLarge.visibility = View.GONE
-//
-//            // Näitame ainult valitut
-//            grid.visibility = View.VISIBLE
-//
-//            // Genereerime nupud
-//            createBoard(grid, rows, cols, prefix)
-//        }
-//
-//        private fun createBoard(grid: GridLayout, rows: Int, cols: Int, prefix: String) {
-//            grid.removeAllViews()
-//            grid.rowCount = rows
-//            grid.columnCount = cols
-//
-//            for (r in 0 until rows) {
-//                for (c in 0 until cols) {
-//                    val toggle = ToggleButton(this).apply {
-//                        id = View.generateViewId()
-//                        text = ""
-//                        textOn = ""
-//                        textOff = ""
-//                        layoutParams = GridLayout.LayoutParams().apply {
-//                            width = 10
-//                            height = 10
-//                            rowSpec = GridLayout.spec(r, 1, 1f)
-//                            columnSpec = GridLayout.spec(c, 1, 1f)
-//                            setMargins(1, 1, 1, 1)
-//                        }
-//                    }
-//
-//                    toggle.setOnClickListener {
-//                        toggle.isChecked = !toggle.isChecked
-//                    }
-//
-//                    grid.addView(toggle)
-//                }
-//            }
-//        }
-//    }
-
-//
-//    companion object {
-//        private val TAG = this::class.java.declaringClass!!.simpleName
-//    }
-//
-//    private lateinit var edit: EditText
-//    private lateinit var greet: TextView
-//    override fun onCreate(savedInstanceState: Bundle?) {
-//        super.onCreate(savedInstanceState)
-//        Log.d(TAG, "onCreate")
-//        enableEdgeToEdge()
-//        setContentView(R.layout.activity_main)
-//        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-//            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-//            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-//            insets
-//        }
-//        }
-//
-//    override fun onStart() {
-//        super.onStart()
-//        Log.d(TAG, "start")
-//    }
-//
-//    override fun onResume() {
-//        super.onResume()
-//        Log.d(TAG, "resume")
-//    }
-//
-//    override fun onPause() {
-//        super.onPause()
-//        Log.d(TAG, "pause")
-//    }
-//
-//
-//    override fun onStop() {
-//        super.onStop()
-//        Log.d(TAG, "stop")
-//
-//    }
-//
-//    override fun onDestroy() {
-//        super.onDestroy()
-//        Log.d(TAG, "destroy")
-//    }
-//    override fun onRestart() {
-//        super.onRestart()
-//        Log.d(TAG, "restart")
-//    }
-//    override fun onSaveInstanceState(outState: Bundle, outPersistableBundle: PersistableBundle) {
-//        super.onSaveInstanceState(outState)
-//        outState.putString("edit_text", edit.text.toString())
-//        outState.putString("greet_text", greet.text.toString())
-//        Log.d(TAG, "onSave with bundle")
-//    }
-//    override fun onSaveInstanceState(outState: Bundle) {
-//        super.onSaveInstanceState(outState)
-//        outState.putString("edit_text", edit.text.toString())
-//        outState.putString("greet_text", greet.text.toString())
-//        Log.d(TAG, "onSave")
-//    }
-//
-//    override fun onRestoreInstanceState(savedInstanceState: Bundle?, persistableBundle: PersistableBundle?) {
-//        super.onRestoreInstanceState(savedInstanceState, persistableBundle)
-//        Log.d(TAG, "onRestore with persistentState")
-//    }
-//    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
-//        super.onRestoreInstanceState(savedInstanceState)
-//        Log.d(TAG, "onRestore")
-//    }
-//    fun buttonLaunchSecondClicked(view: View) {
-//        val intent = Intent(this, SecondActivity::class.java)
-//        startActivity(intent)
-//    }
-//
-//    fun buttonServiceClicked(view: View) {
-//        val intent = Intent(this, DemoService::class.java)
-//        startService(intent)
-//    }
-//
-//    fun okClicked(view: View) {
-//        edit = findViewById(R.id.edit)
-//        greet = findViewById(R.id.greet)
-//        greet.text = ""
-//        val button: Button = findViewById(R.id.button)
-//
-//        button.setOnClickListener {
-//            greet.text = buildString {
-//                append("Hello, ")
-//                append(edit.text)
-//                append("!")
-//            }
-//
-//        }
-//    }
-
-

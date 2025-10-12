@@ -1,99 +1,96 @@
 package com.example.kaver
 
+import java.io.Serializable
+
 abstract class GameBoard(
     val rows: Int,
     val cols: Int,
     val winCondition: Int
-) {
-    enum class Player { RED, YELLOW }
+) : Serializable {  // because we want game to continue if we rotate
+    companion object {
+        enum class Player { RED, BLUE }  // no constants, only magic
+    }
 
     var currentPlayer: Player = Player.RED
-    val board = Array(rows) { Array<Player?>(cols) { null } }
+        private set  // immutable
+
+    val board = Array(rows) { arrayOfNulls<Player>(cols) }
 
     abstract fun getGameName(): String
 
-    // Place a token (gravity rule)
-    fun placeToken(col: Int): Boolean {
-        if (col < 0 || col >= cols) return false
+    fun placeToken(col: Int): Int? {
+        if (col < 0 || col >= cols) return null
 
         for (row in rows - 1 downTo 0) {
             if (board[row][col] == null) {
                 board[row][col] = currentPlayer
-                return true
+                return row  // control if we have a winner
             }
         }
-        return false
+        return null // full column
     }
 
     fun switchPlayer() {
-        currentPlayer = if (currentPlayer == Player.RED) Player.YELLOW else Player.RED
-    }
-
-    fun checkWinner(): Boolean {
-        val player = currentPlayer
-        return checkHorizontal(player) ||
-                checkVertical(player) ||
-                checkDiagonalDownRight(player) ||
-                checkDiagonalUpRight(player)
-    }
-
-    private fun checkHorizontal(player: Player): Boolean {
-        for (row in 0 until rows) {
-            var count = 0
-            for (col in 0 until cols) {
-                if (board[row][col] == player) {
-                    count++
-                    if (count >= winCondition) return true
-                } else count = 0
-            }
+        currentPlayer = when (currentPlayer) {
+            Player.RED -> Player.BLUE
+            Player.BLUE -> Player.RED
         }
-        return false
     }
 
-    private fun checkVertical(player: Player): Boolean {
-        for (col in 0 until cols) {
-            var count = 0
-            for (row in 0 until rows) {
-                if (board[row][col] == player) {
-                    count++
-                    if (count >= winCondition) return true
-                } else count = 0
-            }
+    fun checkWinner(lastMove: Pair<Int, Int>): Boolean {
+        val (row, col) = lastMove
+        val player = board[row][col] ?: return false // must have player
+
+        val directions = listOf(
+            Pair(0, 1),   // right
+            Pair(1, 0),   // down
+            Pair(1, 1),   // down-right
+            Pair(1, -1)   // down-left
+        )
+
+        return directions.any { (dr, dc) -> // one way + opposite way + middle button
+            val count = 1 + countInDirection(row, col, dr, dc, player) + countInDirection(
+                row,
+                col,
+                -dr,
+                -dc,
+                player
+            )
+            count >= winCondition
         }
-        return false
     }
 
-    private fun checkDiagonalDownRight(player: Player): Boolean {
-        for (row in 0 until rows) {
-            for (col in 0 until cols) {
-                var count = 0
-                for (i in 0 until winCondition) {
-                    if (row + i < rows && col + i < cols && board[row + i][col + i] == player) {
-                        count++
-                        if (count >= winCondition) return true
-                    } else break
-                }
-            }
+    private fun countInDirection(
+        startRow: Int,
+        startCol: Int,
+        dRow: Int,
+        dCol: Int,
+        player: Player
+    ): Int {
+        var count = 0
+        var r = startRow + dRow
+        var c = startCol + dCol
+        while (r in 0 until rows && c in 0 until cols && board[r][c] == player) {
+            count++
+            r += dRow
+            c += dCol
         }
-        return false
+        return count
     }
 
-    private fun checkDiagonalUpRight(player: Player): Boolean {
-        for (row in 0 until rows) {
-            for (col in 0 until cols) {
-                var count = 0
-                for (i in 0 until winCondition) {
-                    if (row - i >= 0 && col + i < cols && board[row - i][col + i] == player) {
-                        count++
-                        if (count >= winCondition) return true
-                    } else break
-                }
-            }
-        }
-        return false
-    }
     fun isBoardFull(): Boolean {
-        return board.all { row -> row.all { it != null } }
+        return board[0].all { it != null }  // just uppest row
     }
+}
 
+class SmallGame : GameBoard(rows = 4, cols = 4, winCondition = 3), Serializable {
+    override fun getGameName() = "Small 3-in-a-row"
+}
+
+class HardGame : GameBoard(rows = 10, cols = 10, winCondition = 5), Serializable {
+    override fun getGameName() = "Hard 5-in-a-row"
+}
+
+class MediumGame : GameBoard(rows = 6, cols = 7, winCondition = 4), Serializable {
+    override fun getGameName() = "Medium 4-in-a-row"
 }
