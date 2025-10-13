@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "i"
-include(":connectX")
+include(":HW1")
