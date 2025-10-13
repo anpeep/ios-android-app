@@ -4,38 +4,38 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.jetback.GameBoard
-import com.example.jetback.GameStatus
-import com.example.jetback.GameViewModel 
-import com.example.jetback.GamescreenUiState
-import com.example.jetback.GameScreen
-import com.example.jetback.MediumGame
-import com.example.jetback.Player
-import com.example.jetback.SmallGame
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
@@ -121,12 +121,13 @@ fun StatusText(uiState: GamescreenUiState) { // <-- LISA SEE PARAMEETER
         val seconds = uiState.elapsedTime % 60
         String.format("%02d:%02d", minutes, seconds)
     }
-    val statusText = when (val status = uiState.gameStatus) { // Correct: access gameStatus from uiState
-        is GameStatus.NotStarted -> "Choose difficulty"
-        is GameStatus.InProgress -> "${uiState.currentPlayer} turn"
-        is GameStatus.Winner -> "${status.player} WON!"
-        is GameStatus.Draw -> "Draw!"
-    }
+    val statusText =
+        when (val status = uiState.gameStatus) { // Correct: access gameStatus from uiState
+            is GameStatus.NotStarted -> "Choose difficulty"
+            is GameStatus.InProgress -> "${uiState.currentPlayer} turn"
+            is GameStatus.Winner -> "${status.player} WON!"
+            is GameStatus.Draw -> "Draw!"
+        }
 
 
     Row(verticalAlignment = Alignment.CenterVertically) {

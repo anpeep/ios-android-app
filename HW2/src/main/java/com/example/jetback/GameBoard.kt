@@ -1,6 +1,5 @@
 package com.example.jetback
 
-import com.example.jetback.Player
 import java.io.Serializable
 
 abstract class GameBoard(
@@ -32,7 +31,6 @@ abstract class GameBoard(
         currentPlayer = when (currentPlayer) {
             Player.RED -> Player.BLUE
             Player.BLUE -> Player.RED
-            else -> {Player.RED}
         }
     }
 
@@ -48,7 +46,13 @@ abstract class GameBoard(
         )
 
         return directions.any { (dr, dc) ->
-            val count = 1 + countInDirection(row, col, dr, dc, player) + countInDirection(row, col, -dr, -dc, player)
+            val count = 1 + countInDirection(row, col, dr, dc, player) + countInDirection(
+                row,
+                col,
+                -dr,
+                -dc,
+                player
+            )
             count >= winCondition
         }
     }

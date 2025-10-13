@@ -37,6 +37,7 @@ class GameViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel(
     val uiState: StateFlow<GamescreenUiState> = _uiState.asStateFlow()
 
     private var timerJob: Job? = null
+
     init {
         // If the game was active upon recreation, restart the timer
         if (_uiState.value.gameActive) {

@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "i"
 include(":HW1")
+include(":HW2")
