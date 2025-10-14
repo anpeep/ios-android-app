@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="white">#FFFFFFFF</color>
+
+    <color name="darkGreen">#77DD76</color>
+    <color name="mediumGreen">#BBF1C4</color>
+    <color name="lightGreen">#E0F6E3</color>
+
+    <color name="darkGreen_night">#013220</color>
+    <color name="mediumGreen_night">#015241</color>
+    <color name="lightGreen_night">#016C56</color>
+
+    <color name="pink">#F4B5C7</color>
+    <color name="red">#F47174</color>
+    <color name="blue">#93CAED</color>
+
+    <color name="pink_night">#e75480</color>
+    <color name="red_night">#850101</color>
+    <color name="blue_night">#040273</color>
+</resources>
