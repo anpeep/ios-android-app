@@ -6,13 +6,13 @@ plugins {
 android {
     namespace = "com.example.kaver"
     // Use the latest stable SDK version for better compatibility and stability.
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.kaver"
         minSdk = 27
         // It's best practice to match targetSdk with compileSdk.
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 

@@ -2,7 +2,7 @@ package com.example.kaver
 
 import java.io.Serializable
 
-abstract class GameBoard(
+abstract class GameBoard(  // inherit that
     val rows: Int,
     val cols: Int,
     val winCondition: Int
@@ -12,7 +12,7 @@ abstract class GameBoard(
     }
 
     var currentPlayer: Player = Player.RED
-        private set  // immutable
+        private set  //  publicly visible, change only here
 
     val board = Array(rows) { arrayOfNulls<Player>(cols) }
 
@@ -71,7 +71,7 @@ abstract class GameBoard(
         var r = startRow + dRow
         var c = startCol + dCol
         while (r in 0 until rows && c in 0 until cols && board[r][c] == player) {
-            count++
+            count++  // does row and column have same player?
             r += dRow
             c += dCol
         }

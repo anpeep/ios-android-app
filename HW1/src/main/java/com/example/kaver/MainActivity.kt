@@ -20,7 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
-    private val allGrids: List<GridLayout> by lazy {
+    private val allGrids: List<GridLayout> by lazy {  // make it when first use
         listOf(
             findViewById(R.id.gridLayoutSmall),
             findViewById(R.id.gridLayoutMedium),
@@ -35,7 +35,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var turnText: TextView
     private lateinit var currentGame: GameBoard
     private var gameActive = false
-    private val connection = object : ServiceConnection {
+    private val connection = object : ServiceConnection {  // service and activity binder = IBinder
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             val binder = service as TimerService.TimerBinder
             timerService = binder.service
@@ -54,12 +54,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val CELL_SIZE_DP = 80
+        private const val CELL_SIZE_DP = 80  // adapt to screen size
         private const val CELL_MARGIN_DP = 2
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    override fun onCreate(savedInstanceState: Bundle?) {  // Android Activity Lifecycle 1. step
+        super.onCreate(savedInstanceState)  // Parcelable, Serializable objects -> Bundle save state
         setContentView(R.layout.gamescreen)
 
         timerText = findViewById(R.id.timerText)
@@ -79,7 +79,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun restoreGameState(savedInstanceState: Bundle) {
+    private fun restoreGameState(savedInstanceState: Bundle) {  // rotation, restart
         Log.d("MainActivity", "Restoring from savedInstanceState")
 
         gameActive = savedInstanceState.getBoolean("GAME_ACTIVE", false)
@@ -93,7 +93,7 @@ class MainActivity : AppCompatActivity() {
         }
         currentGame = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             savedInstanceState.getSerializable("CURRENT_GAME", GameBoard::class.java)
-        } else {
+        } else { // casting ew
             @Suppress("DEPRECATION")
             savedInstanceState.getSerializable("CURRENT_GAME") as? GameBoard
         } ?: return
@@ -114,7 +114,7 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "Re-binding to TimerService after restoring active game.")
         Intent(this, TimerService::class.java).also { intent ->
             bindService(intent, connection, BIND_AUTO_CREATE)
-        }
+        }  // if service isn't up startService yourself
     }
 
     private fun setupDifficultyButtons() {
@@ -133,7 +133,7 @@ class MainActivity : AppCompatActivity() {
         if (gameActive) return
 
         Intent(this, TimerService::class.java).also { intent ->
-            intent.action = TimerService.ACTION_START_FRESH
+            intent.action = TimerService.ACTION_START_FRESH  // null timer
             startService(intent)
         }
 
@@ -181,7 +181,7 @@ class MainActivity : AppCompatActivity() {
                 val btn = grid.getChildAt(index) as? ToggleButton
                 val color = if (player != null) {
                     ContextCompat.getColor(this, getPlayerColor(player))
-                } else {
+                } else {  // we don't trust resources.getColor
                     Color.LTGRAY
                 }
                 btn?.setBackgroundColor(color)
@@ -225,7 +225,7 @@ class MainActivity : AppCompatActivity() {
         if (row != null) {
             updateBoardUI(activeGrid, game)
             checkGameState(game, Pair(row, column))
-        } else {
+        } else {  // notification comes, notification goes
             Toast.makeText(this, "Full", Toast.LENGTH_SHORT).show()
         }
     }
