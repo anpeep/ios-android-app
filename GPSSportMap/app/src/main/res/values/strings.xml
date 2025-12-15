@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">GPS SportMap</string>
+    <string name="wp">WP</string>
+    <string name="cp">CP</string>
+    <string name="time">Time</string>
+    <string name="distance">Distance</string>
+    <string name="tracking_active">Tracking Active</string>
+    <string name="icon">icon</string>
+</resources>
