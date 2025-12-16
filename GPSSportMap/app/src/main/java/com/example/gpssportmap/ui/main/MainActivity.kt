@@ -181,10 +181,12 @@ fun MainContent(
         SaveSessionDialog(
             onDismiss = {
                 showSaveDialog = false
+                onStopLocationService()
             },
             onConfirm = { name, description ->
                 showSaveDialog = false
                 mainVm.updateSession(name, description)
+                onStopLocationService()
             }
         )
     }
@@ -202,7 +204,7 @@ fun MainContent(
     MainScreen(
         vm = mainVm,
         onStartLocationService = onStartLocationService,
-        onStopLocationService = onStopLocationService,
+        onStopLocationService = { showSaveDialog = true },
         onOpenHistory = { navController.navigate("old_sessions") }
     )
 
@@ -216,7 +218,7 @@ fun SaveSessionDialog(
     var description by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { onDismiss() },
         title = { Text("Save Session") },
         text = {
             Column {
@@ -602,10 +604,23 @@ Log.d("MainScreen", "Latitude: $latitude, points: $latitude, Longitude: $longitu
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Button(onClick = { if (isTracking) onStopLocationService() else onStartLocationService() }) {
+                    Button(
+                        onClick = {
+                            if (!isTracking) {
+                                vm.startSession(
+                                    name = "Session",
+                                    description = null,
+                                    sessionTypeId = "DEFAULT"
+                                )
+                                onStartLocationService()
+                            } else {
+                                vm.stopSession()
+                                onStopLocationService()
+                            }
+                        }
+                    ) {
                         Text(if (isTracking) "STOP" else "START")
                     }
-
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("${totalDist.toInt()} m")
                         Button(onClick = { vm.addCheckpointUi() }) { Text("CP +") }

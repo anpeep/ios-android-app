@@ -2,9 +2,12 @@
 package com.example.gpssportmap.ui.main
 
 import android.location.Location
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gpssportmap.data.TokenStore
 import com.example.gpssportmap.data.db.GpsLocationEntity
+import com.example.gpssportmap.data.db.GpsSessionCreateDto
 import com.example.gpssportmap.data.db.GpsSessionEntity
 import com.example.gpssportmap.data.db.GpsSessionTypeEntity
 import com.example.gpssportmap.data.repository.SessionRepository
@@ -19,6 +22,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -27,7 +31,7 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     private val tracker: SessionTracker,
     private val sessionRepository: SessionRepository,
-    private val compassSensor: CompassSensor
+    private val compassSensor: CompassSensor,
 ) : ViewModel() {
 
     init {
@@ -41,6 +45,9 @@ class MainViewModel @Inject constructor(
     val waypoint: StateFlow<Location?> = tracker.waypoint
     val checkpoints: StateFlow<List<GpsLocationEntity>> = tracker.checkpoints
 
+    val totalDistanceMeters: StateFlow<Double> = tracker.distance
+    val elapsed = tracker.elapsed
+    val pace = tracker.pace
 
 
     val currentLocation: StateFlow<Location?> =
@@ -52,15 +59,6 @@ class MainViewModel @Inject constructor(
                 null
             )
 
-
-
-    val totalDistanceMeters: StateFlow<Double> =
-        tracker.distance
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5_000),
-                0.0
-            )
 
 
 
@@ -128,9 +126,28 @@ class MainViewModel @Inject constructor(
 
     fun startSession(name: String, description: String?, sessionTypeId: String) {
         viewModelScope.launch {
-            tracker.startSession(name, description, sessionTypeId)
+            val dto = GpsSessionCreateDto(
+                name = name,
+                description = description,
+                gpsSessionTypeId = sessionTypeId,
+                recordedAt = Instant.now().toString(),
+                paceMin = null,
+                paceMax = null
+            )
+
+            val result = tracker.startSession(dto)
+
+            result.onFailure { e ->
+                if (e is HttpException && e.code() == 401) {
+                    // Repository already cleared token
+                } else {
+                    Log.e("SESSION", "Failed to start session", e)
+                }
+            }
         }
     }
+
+
 
     fun stopSession() {
         tracker.stopSession()

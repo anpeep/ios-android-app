@@ -4,6 +4,7 @@ import android.location.Location
 import android.util.Log
 import com.example.gpssportmap.data.db.GpsLocationEntity
 import com.example.gpssportmap.data.db.GpsSessionCreateDto
+import com.example.gpssportmap.data.db.GpsSessionEntity
 import com.example.gpssportmap.data.network.toGpsEntity
 import com.example.gpssportmap.data.network.toGpsLocationEntity
 import com.example.gpssportmap.data.repository.SessionRepository
@@ -20,6 +21,7 @@ import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.toString
 
 @Singleton
 class SessionTracker @Inject constructor(
@@ -47,9 +49,28 @@ class SessionTracker @Inject constructor(
 
     private var lastLocation: Location? = null
 
-    private val _totalDistance = MutableStateFlow(0.0)
-    val totalDistanceMeters = _totalDistance.asStateFlow()
     private val _currentSessionId = MutableStateFlow<UUID?>(null)
+
+    suspend fun startSession(dto: GpsSessionCreateDto): Result<GpsSessionEntity> {
+        return try {
+            val session = repository.startSession(dto)
+            _currentSessionId.value = UUID.fromString(session.id.toString())
+
+            // Start tracking only here
+            _isTracking.value = true
+            _distance.value = 0.0
+            _elapsed.value = 0L
+            _trackPoints.value = emptyList()
+            lastLocation = null
+            startTimer()
+
+            Result.success(session)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
     suspend fun onLocation(location: Location) {
         Log.d("SessionTracker", "Received location: ${location.latitude}, ${location.longitude}")
 
@@ -73,34 +94,9 @@ class SessionTracker @Inject constructor(
                 type = C.LOCATION_TYPE_TRACK,
                 sessionId = sessionId
             )
-        )
-    }
-    suspend fun startSession(
-        name: String,
-        description: String?,
-        sessionTypeId: String
-    ) {
-        val dto = GpsSessionCreateDto(
-            name = name,
-            description = description,
-            gpsSessionTypeId = sessionTypeId,
-            recordedAt = Instant.now().toString(),
-            paceMin = null,
-            paceMax = null
-        )
+        )}
 
-        val created = repository.startSession(dto)
 
-        _currentSessionId.value = UUID.fromString(created.id.toString())
-
-        _isTracking.value = true
-        _distance.value = 0.0
-        _elapsed.value = 0L
-        _trackPoints.value = emptyList()
-        lastLocation = null
-
-        startTimer()
-    }
     fun stopSession() {
         _isTracking.value = false
         timerJob?.cancel()
@@ -144,3 +140,4 @@ class SessionTracker @Inject constructor(
     }
 
 }
+

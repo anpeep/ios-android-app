@@ -3,7 +3,7 @@ package com.example.gpssportmap.ui.main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gpssportmap.data.repository.AuthRepository
+import com.example.gpssportmap.data.repository.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +13,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: SessionRepository
 ) : ViewModel() {
 
     private val _loading = MutableStateFlow(false)

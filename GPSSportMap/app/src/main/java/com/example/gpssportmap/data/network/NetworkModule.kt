@@ -41,18 +41,18 @@ object NetworkModule {
     }
 
 
-    @Provides
-    @Singleton
-    fun provideRetrofit(moshi: Moshi): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl(BASE_URL) // <-- IMPORTANT: Replace with your actual base URL
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-    }
+        @Provides
+        @Singleton
+        fun provideRetrofit(moshi: Moshi): Retrofit {
+            return Retrofit.Builder()
+                .baseUrl(BASE_URL) // <-- IMPORTANT: Replace with your actual base URL
+                .client(OkHttpClient())
+                .addConverterFactory(MoshiConverterFactory.create(moshi))
+                .build()
+        }
 
     @Provides
     @Singleton
     fun provideApi(retrofit: Retrofit): ApiService {
         return retrofit.create(ApiService::class.java)
-    }
-}
+    }    }

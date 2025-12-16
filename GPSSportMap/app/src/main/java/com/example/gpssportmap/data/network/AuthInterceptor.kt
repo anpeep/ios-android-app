@@ -1,26 +1,30 @@
 package com.example.gpssportmap.data.network
 
 import android.content.SharedPreferences
+import android.util.Log
+import com.example.gpssportmap.data.TokenStore
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
 
 class AuthInterceptor @Inject constructor(
-    private val prefs: SharedPreferences
+    private val tokenStore: TokenStore
 ) : Interceptor {
-
     override fun intercept(chain: Interceptor.Chain): Response {
-        val token = prefs.getString("jwt_token", null)
+        val token = tokenStore.getToken()
 
-        val req = chain.request().newBuilder()
+        Log.d("AuthInterceptor", "JWT = ${token?.take(20)}")
+
+        val request = chain.request().newBuilder()
             .addHeader("Content-Type", "application/json")
             .apply {
-                if (token != null) {
+                if (!token.isNullOrBlank()) {
                     addHeader("Authorization", "Bearer $token")
                 }
             }
             .build()
 
-        return chain.proceed(req)
+        return chain.proceed(request)
     }
+
 }

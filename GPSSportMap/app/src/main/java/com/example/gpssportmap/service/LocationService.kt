@@ -11,10 +11,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Looper
+import android.util.Log
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import com.example.gpssportmap.R
+import com.example.gpssportmap.data.db.GpsSessionCreateDto
 import com.example.gpssportmap.domain.model.SessionTracker
 import com.example.gpssportmap.ui.main.LockScreenSessionStore
 import com.example.gpssportmap.ui.main.MainActivity
@@ -41,6 +43,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.time.Instant
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -88,27 +91,26 @@ class LocationService : LifecycleService() {
         when (intent?.action) {
             ACTION_START -> {
                 serviceScope.launch {
-                    tracker.startSession(
-                        name = "Session",
-                        description = null,
-                        sessionTypeId = "DEFAULT"
-                    )
+                    start()
                 }
-                start()
             }
-            ACTION_PREVIEW -> {
-                start() // preview still needs GPS
-            }
+
+
+            ACTION_PREVIEW -> start()
+
             ACTION_STOP -> stop()
 
             ACTION_CP -> serviceScope.launch {
-                tracker.addCheckpoint()
+                runCatching { tracker.addCheckpoint() }
+                    .onFailure { Log.e("TrackingService", "Checkpoint failed", it) }
             }
 
             ACTION_WP -> serviceScope.launch {
-                tracker.addWaypoint()
+                runCatching { tracker.addWaypoint() }
+                    .onFailure { Log.e("TrackingService", "Waypoint failed", it) }
             }
         }
+
         return START_STICKY
     }
 
