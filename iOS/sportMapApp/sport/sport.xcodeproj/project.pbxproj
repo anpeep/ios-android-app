@@ -10,9 +10,22 @@
 		C16A9CE32F0BEE7800E4CF25 /* sport.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = sport.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C16A9CF72F0BEFAF00E4CF25 /* Exceptions for "sport" folder in "sport" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C16A9CE22F0BEE7800E4CF25 /* sport */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C16A9CE52F0BEE7800E4CF25 /* sport */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C16A9CF72F0BEFAF00E4CF25 /* Exceptions for "sport" folder in "sport" target */,
+			);
 			path = sport;
 			sourceTree = "<group>";
 		};
@@ -253,9 +266,15 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2PSD7NSW8U;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = sport/Info.plist;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Just using it";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Just using it";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Just using it";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -288,6 +307,12 @@
 				DEVELOPMENT_TEAM = 2PSD7NSW8U;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = sport/Info.plist;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Just using it";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Just using it";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Just using it";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
