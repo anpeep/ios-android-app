@@ -6,11 +6,61 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C16703972F0D66A400F62C1C /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C16703272F0D570E00F62C1C /* WidgetKit.framework */; };
+		C16703982F0D66A400F62C1C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C16703292F0D570E00F62C1C /* SwiftUI.framework */; };
+		C16703A52F0D66A600F62C1C /* LiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C16703962F0D66A400F62C1C /* LiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C16703A32F0D66A600F62C1C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C16A9CDB2F0BEE7800E4CF25 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C16703952F0D66A400F62C1C;
+			remoteInfo = LiveActivityExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C167033C2F0D571000F62C1C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C16703A52F0D66A600F62C1C /* LiveActivityExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		C16703192F0D338600F62C1C /* Afternoon_Run.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = Afternoon_Run.gpx; path = ../../../../../Downloads/Afternoon_Run.gpx; sourceTree = "<group>"; };
+		C167031E2F0D4B7900F62C1C /* Afternoon_Run.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = Afternoon_Run.gpx; path = ../../../../../Downloads/Afternoon_Run.gpx; sourceTree = "<group>"; };
+		C16703272F0D570E00F62C1C /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		C16703292F0D570E00F62C1C /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		C16703962F0D66A400F62C1C /* LiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C16A9CE32F0BEE7800E4CF25 /* sport.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = sport.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C16703A92F0D66A600F62C1C /* Exceptions for "LiveActivity" folder in "LiveActivityExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C16703952F0D66A400F62C1C /* LiveActivityExtension */;
+		};
+		C16703AD2F0D67AD00F62C1C /* Exceptions for "sport" folder in "LiveActivityExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				TrackingAttributes.swift,
+				TrackingIntents.swift,
+			);
+			target = C16703952F0D66A400F62C1C /* LiveActivityExtension */;
+		};
 		C16A9CF72F0BEFAF00E4CF25 /* Exceptions for "sport" folder in "sport" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -21,10 +71,19 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		C16703992F0D66A400F62C1C /* LiveActivity */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C16703A92F0D66A600F62C1C /* Exceptions for "LiveActivity" folder in "LiveActivityExtension" target */,
+			);
+			path = LiveActivity;
+			sourceTree = "<group>";
+		};
 		C16A9CE52F0BEE7800E4CF25 /* sport */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				C16A9CF72F0BEFAF00E4CF25 /* Exceptions for "sport" folder in "sport" target */,
+				C16703AD2F0D67AD00F62C1C /* Exceptions for "sport" folder in "LiveActivityExtension" target */,
 			);
 			path = sport;
 			sourceTree = "<group>";
@@ -32,6 +91,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		C16703932F0D66A400F62C1C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C16703982F0D66A400F62C1C /* SwiftUI.framework in Frameworks */,
+				C16703972F0D66A400F62C1C /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C16A9CE02F0BEE7800E4CF25 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -42,10 +110,23 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		C16703262F0D570E00F62C1C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				C16703272F0D570E00F62C1C /* WidgetKit.framework */,
+				C16703292F0D570E00F62C1C /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		C16A9CDA2F0BEE7800E4CF25 = {
 			isa = PBXGroup;
 			children = (
+				C16703192F0D338600F62C1C /* Afternoon_Run.gpx */,
+				C167031E2F0D4B7900F62C1C /* Afternoon_Run.gpx */,
 				C16A9CE52F0BEE7800E4CF25 /* sport */,
+				C16703992F0D66A400F62C1C /* LiveActivity */,
+				C16703262F0D570E00F62C1C /* Frameworks */,
 				C16A9CE42F0BEE7800E4CF25 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +135,7 @@
 			isa = PBXGroup;
 			children = (
 				C16A9CE32F0BEE7800E4CF25 /* sport.app */,
+				C16703962F0D66A400F62C1C /* LiveActivityExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,6 +143,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		C16703952F0D66A400F62C1C /* LiveActivityExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C16703A62F0D66A600F62C1C /* Build configuration list for PBXNativeTarget "LiveActivityExtension" */;
+			buildPhases = (
+				C16703922F0D66A400F62C1C /* Sources */,
+				C16703932F0D66A400F62C1C /* Frameworks */,
+				C16703942F0D66A400F62C1C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C16703992F0D66A400F62C1C /* LiveActivity */,
+			);
+			name = LiveActivityExtension;
+			packageProductDependencies = (
+			);
+			productName = LiveActivityExtension;
+			productReference = C16703962F0D66A400F62C1C /* LiveActivityExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		C16A9CE22F0BEE7800E4CF25 /* sport */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = C16A9CF32F0BEE7900E4CF25 /* Build configuration list for PBXNativeTarget "sport" */;
@@ -68,10 +172,12 @@
 				C16A9CDF2F0BEE7800E4CF25 /* Sources */,
 				C16A9CE02F0BEE7800E4CF25 /* Frameworks */,
 				C16A9CE12F0BEE7800E4CF25 /* Resources */,
+				C167033C2F0D571000F62C1C /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C16703A42F0D66A600F62C1C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				C16A9CE52F0BEE7800E4CF25 /* sport */,
@@ -93,6 +199,9 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					C16703952F0D66A400F62C1C = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					C16A9CE22F0BEE7800E4CF25 = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -113,11 +222,19 @@
 			projectRoot = "";
 			targets = (
 				C16A9CE22F0BEE7800E4CF25 /* sport */,
+				C16703952F0D66A400F62C1C /* LiveActivityExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		C16703942F0D66A400F62C1C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C16A9CE12F0BEE7800E4CF25 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -128,6 +245,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		C16703922F0D66A400F62C1C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C16A9CDF2F0BEE7800E4CF25 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -137,7 +261,79 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		C16703A42F0D66A600F62C1C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C16703952F0D66A400F62C1C /* LiveActivityExtension */;
+			targetProxy = C16703A32F0D66A600F62C1C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		C16703A72F0D66A600F62C1C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2PSD7NSW8U;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSSupportsLiveActivities = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = test.appleid.anpeep.sport.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C16703A82F0D66A600F62C1C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2PSD7NSW8U;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LiveActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSSupportsLiveActivities = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = test.appleid.anpeep.sport.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		C16A9CF12F0BEE7900E4CF25 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -264,12 +460,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 2PSD7NSW8U;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = sport/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Just using it";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Just using it";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Just using it";
@@ -285,8 +483,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = taltech.sport;
+				PRODUCT_BUNDLE_IDENTIFIER = test.appleid.anpeep.sport;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -302,12 +501,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 2PSD7NSW8U;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = sport/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Just using it";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Just using it";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Just using it";
@@ -323,8 +524,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = taltech.sport;
+				PRODUCT_BUNDLE_IDENTIFIER = test.appleid.anpeep.sport;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -338,6 +540,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		C16703A62F0D66A600F62C1C /* Build configuration list for PBXNativeTarget "LiveActivityExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C16703A72F0D66A600F62C1C /* Debug */,
+				C16703A82F0D66A600F62C1C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		C16A9CDE2F0BEE7800E4CF25 /* Build configuration list for PBXProject "sport" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
