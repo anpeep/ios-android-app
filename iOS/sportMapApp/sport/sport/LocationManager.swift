@@ -9,20 +9,22 @@ import CoreLocation
 import Combine
 import SwiftUI
 import ActivityKit
+import CoreData
 @MainActor
 final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var lastLocation: CLLocation?
-        @Published var route: [CLLocationCoordinate2D] = []
+    @Published var route: [RoutePoint] = []
         @Published var distance: Double = 0
         @Published var keepCentered: Bool = true
         @Published var isTracking: Bool = false
         @Published var authorizationStatus: CLAuthorizationStatus
-        
+    @Published var fastPaceThreshold: Double = 180 // 3 min/km in seconds
+    @Published var slowPaceThreshold: Double = 1200 // 20 min/km in seconds
         // Checkpoint Stats
         @Published var directDistanceFromCheckpoint: Double = 0.0
         @Published var pathDistanceFromCheckpoint: Double = 0.0
         @Published var checkpoints: [CLLocationCoordinate2D] = []
-        
+    @Published var currentSessionId: String? = UUID().uuidString
         // Waypoint Stats
         @Published var directDistanceFromWaypoint: Double = 0.0
         @Published var pathDistanceFromWaypoint: Double = 0.0
@@ -33,19 +35,29 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         var lastWaypointLocation: CLLocation?
         var lastCheckpointTime: Date?
         var lastWaypointTime: Date?
-        
+        private let gpsService = GpsApiService()
         private let manager = CLLocationManager()
         var currentActivity: Activity<TrackingAttributes>?
         @Published var sessionStartTime: Date?
         @Published var elapsedTime: TimeInterval = 0
         private var durationTimer: Timer?
-
+    @Published var degrees: Double = 0
+        @Published var isCompassEnabled: Bool = false {
+            didSet {
+                if isCompassEnabled {
+                    manager.startUpdatingHeading()
+                } else {
+                    manager.stopUpdatingHeading()
+                }
+            }
+        }
     override init() {
         // Initialize status before super.init
         self.authorizationStatus = CLLocationManager().authorizationStatus
         super.init()
         
         manager.delegate = self
+        manager.headingFilter = 1 // Only update if it moves by 1 degree
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.activityType = .fitness
         manager.allowsBackgroundLocationUpdates = true
@@ -58,10 +70,32 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
                 await activity.end(finalContent, dismissalPolicy: .immediate)            }
         }
     }
-    
+    // Inside LocationManager
+    @Published var updateInterval: Double = 1.0 {
+        didSet {
+            // Higher interval = less accuracy needed to save battery/data
+            manager.distanceFilter = updateInterval * 2
+        }
+    }
     // MARK: - Control Methods
     func requestPermission() {
         manager.requestAlwaysAuthorization()
+    }
+    func color(for pace: Double) -> Color {
+        let pacePerKm = pace * 1000 // Convert sec/m to sec/km
+        
+        if pacePerKm <= fastPaceThreshold { return .green }
+        if pacePerKm >= slowPaceThreshold { return .red }
+        
+        // Calculate gradient for middle ground (Yellow)
+        let range = slowPaceThreshold - fastPaceThreshold
+        let position = (pacePerKm - fastPaceThreshold) / range
+        
+        if position < 0.5 {
+            return Color(red: position * 2, green: 1, blue: 0) // Green to Yellow
+        } else {
+            return Color(red: 1, green: 1 - ((position - 0.5) * 2), blue: 0) // Yellow to Red
+        }
     }
     
     func startGPS(startTime: Date) {
@@ -227,28 +261,36 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     }
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let newLoc = locations.last else { return }
-        
+        var calculatedPace: Double = 0
+        if let last = self.lastLocation {
+            let distanceDelta = newLoc.distance(from: last)
+            let timeDelta = newLoc.timestamp.timeIntervalSince(last.timestamp)
+            
+            if distanceDelta > 0.5 && timeDelta > 0 { // Small distance threshold to avoid infinity pace
+                calculatedPace = timeDelta / distanceDelta // seconds per meter
+            }
+        }
+        self.saveAndSync(location: newLoc, pace: calculatedPace)
         DispatchQueue.main.async {
             if let last = self.lastLocation {
                 let delta = newLoc.distance(from: last)
                 
                 if delta < 100 { // Filter GPS jumps
                     self.distance += delta
-                    self.route.append(newLoc.coordinate)
-                    
-                    // Increment Path Distances (Winding path)
+                    self.route.append(RoutePoint(coordinate: newLoc.coordinate, pace: calculatedPace))
                     if self.lastCheckpointLocation != nil { self.pathDistanceFromCheckpoint += delta }
                     if self.lastWaypointLocation != nil { self.pathDistanceFromWaypoint += delta }
                     
                     self.updateLiveActivityUI()
                 }
             } else {
-                self.route.append(newLoc.coordinate)
+                self.route.append(RoutePoint(coordinate: newLoc.coordinate, pace: calculatedPace))
+
             }
             
             self.lastLocation = newLoc
             
-            // Calculate Direct Distances (Straight line / Displacement)
+            // Distance calculations for Checkpoints/Waypoints
             if let cpLoc = self.lastCheckpointLocation {
                 self.directDistanceFromCheckpoint = newLoc.distance(from: cpLoc)
             }
@@ -257,6 +299,67 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
             }
         }
     }
+    func saveAndSync(location: CLLocation, pace: Double) {
+        let context = PersistenceController.shared.container.viewContext
+        let newLoc = SavedLocation(context: context)
+        newLoc.lat = location.coordinate.latitude
+        newLoc.lon = location.coordinate.longitude
+        newLoc.timestamp = location.timestamp
+        newLoc.pace = pace // Now saved for history!
+        newLoc.isSynced = false
+        newLoc.sessionId = self.currentSessionId
+        
+        do {
+            try context.save()
+            syncPendingLocations()
+        } catch {
+            print("❌ Core Data Save Error: \(error)")
+        }
+    }
+    func syncPendingLocations() {
+        let context = PersistenceController.shared.container.viewContext
+        let request = NSFetchRequest<SavedLocation>(entityName: "SavedLocation")
+        request.predicate = NSPredicate(format: "isSynced == false")
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: true)]
+
+        guard let pending = try? context.fetch(request), !pending.isEmpty else { return }
+
+        Task {
+            for loc in pending {
+                do {
+                    // 1. Reconstruct the CLLocation object from Core Data values
+                    let coordinate = CLLocationCoordinate2D(latitude: loc.lat, longitude: loc.lon)
+                    let clLocation = CLLocation(
+                        coordinate: coordinate,
+                        altitude: 0,
+                        horizontalAccuracy: 0,
+                        verticalAccuracy: 0,
+                        timestamp: loc.timestamp ?? Date()
+                    )
+                    
+                    // 2. Extract the sessionId and provide a fallback for locationTypeId
+                    let sessionId = loc.sessionId ?? ""
+                    let typeId = "00000000-0000-0000-0000-000000000001" // Use your default workout type ID here
+
+                    // 3. Call the function with the correct arguments and labels
+                    try await gpsService.sendLocation(
+                        location: clLocation,
+                        sessionId: sessionId,
+                        locationTypeId: typeId
+                    )
+                    
+                    // 4. Mark as synced and save
+                    loc.isSynced = true
+                    try? context.save()
+                    
+                } catch {
+                    print("📡 Sync failed for point at \(loc.timestamp ?? Date()): \(error)")
+                    break // Stop the loop if connection is still bad
+                }
+            }
+        }
+    }
+    
     func checkSharedActions() {
         let shared = UserDefaults(suiteName: "group.taltech.anpeep.sport")
         if shared?.bool(forKey: "action_consumed") == true { return }
@@ -293,7 +396,10 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
             }
         }
     }
-
+    func startHeadingUpdates() {
+        manager.delegate = self
+        manager.startUpdatingHeading()
+    }
     func updateLiveActivityUI(status: String = "Tracking...") {
         let updatedState = TrackingAttributes.ContentState(
             distanceCovered: self.distance,
@@ -318,4 +424,9 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     // Inside LocationManager
     @Published var mapPoints: [MapPoint] = []
 }
-
+struct RoutePoint: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
+    let pace: Double
+    var type: String? = nil
+}

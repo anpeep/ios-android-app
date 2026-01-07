@@ -12,7 +12,8 @@ import MapKit
 
 struct SessionDetailView: View {
     let sessionId: String
-    
+    @EnvironmentObject var locationVM: LocationManager
+    @State private var showHistorySettings = false
     @Environment(\.dismiss) var dismiss
     
     @State private var session: GpsSessionListItem?
@@ -29,61 +30,45 @@ struct SessionDetailView: View {
                 ProgressView("Loading session...")
             } else {
                 VStack(spacing: 0) {
-                    Map(position: $camera) {
-                        // 1. Draw the Route Line (The path you traveled)
-                        if locations.count > 1 {
-                            // Filter out markers if you only want the line to connect actual path points
-                            // or just map all locations if your backend includes coordinates for everything.
-                            let pathCoords = locations.map {
-                                CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
-                            }
-                            MapPolyline(coordinates: pathCoords)
-                                .stroke(.blue, lineWidth: 5)
+                    // 1. We wrap everything in a ZStack so buttons float over the map
+                    ZStack(alignment: .topTrailing) {
+                        
+                        // The MapKitMapView now handles lines, colors, and markers
+                        MapKitMapView(locationManager: locationVM)
+                            .edgesIgnoringSafeArea(.top)
+                        
+                        // Floating Settings Button
+                        Button {
+                            showHistorySettings = true
+                        } label: {
+                            Label("Colors", systemImage: "paintpalette.fill")
+                                .padding(10)
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .shadow(radius: 2)
                         }
-
-                        // 2. Draw the Markers (Checkpoints and Waypoints)
-                        ForEach(locations) { loc in
-                            let coordinate = CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude)
-                            if let cpTypeId, loc.gpsLocationTypeId == cpTypeId {
-                                Annotation("CP", coordinate: coordinate, anchor: .bottom) {
-                                    Image("location")
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                }
-                            }
-                            if let wpTypeId, loc.gpsLocationTypeId == wpTypeId {
-                                Annotation("WP", coordinate: coordinate, anchor: .bottom) {
-                                    Image("right-way")
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                }
-                            }
-                        }
-
-                        // 3. Start & End Markers
-                        if let first = locations.first, let last = locations.last {
-                            Marker("Start", coordinate: CLLocationCoordinate2D(latitude: first.latitude, longitude: first.longitude)).tint(.green)
-                            Marker("End", coordinate: CLLocationCoordinate2D(latitude: last.latitude, longitude: last.longitude)).tint(.red)
-                        }
-                    
-                    }
-                    .overlay(alignment: .top) {
+                        .padding(.trailing, 16)
+                        .padding(.top, 80) // Pushed down to avoid the Back Button
+                        
+                        // Your existing topBar overlay (Back/Export)
                         topBar
                     }
                     
-                    // 📊 STATS
+                    // 📊 STATS PANEL at the bottom
                     statsPanel
                 }
             }
         }
-        .navigationBarBackButtonHidden(true)
-        .task {
-            await load()
-
-        }
+        .navigationBarBackButtonHidden(true) // This now correctly attaches to the ZStack
+            .sheet(isPresented: $showHistorySettings) {
+                NavigationStack { // Use NavigationStack if on iOS 16+
+                    SettingsView(isLiveMode: false)
+                        .environmentObject(locationVM)
+                }
+            }
+            .task {
+                await load()
+            }
     }
-    
-    // MARK: - UI
     
     var topBar: some View {
         HStack {
@@ -115,13 +100,15 @@ struct SessionDetailView: View {
             HStack {
                 stat("Distance", "\(session?.distance ?? 0, default: "%.0f") m")
                 stat("Duration", formatTime(session?.duration ?? 0))
-                stat("Avg Pace", formatPace(Int(session?.paceMin ?? 0)))            }
-            
-            HStack {
-                stat("Speed", String(format: "%.1f km/h", session?.speed ?? 0))
-                stat("Climb", String(format: "%.0f m", session?.climb ?? 0))
-                stat("Descent", String(format: "%.0f m", session?.descent ?? 0))
-            }
+                            
+                            // Avg Pace (Calculate it yourself to be safe)
+                            let paceString = formatPace(
+                                distance: session?.distance ?? 0,
+                                time: session?.duration ?? 0
+                            )
+                            stat("Avg Pace", paceString)
+                                 }
+
         }
         .padding()
         .background(.ultraThinMaterial)
@@ -134,38 +121,64 @@ struct SessionDetailView: View {
         }
         .frame(maxWidth: .infinity)
     }
-    
     func load() async {
         do {
             let api = GpsApiService()
 
-            // ✅ 1. Load location types (CP / WP / LOC)
+            // 1. Load types
             let types = try await api.getLocationTypes()
             cpTypeId = types.first(where: { $0.name == "CP" })?.id
             wpTypeId = types.first(where: { $0.name == "WP" })?.id
             locTypeId = types.first(where: { $0.name == "LOC" })?.id
 
-            print("🧭 Type IDs:")
-            print("CP =", cpTypeId ?? "nil")
-            print("WP =", wpTypeId ?? "nil")
-            print("LOC =", locTypeId ?? "nil")
-
-            // ✅ 2. Load session + locations
+            // 2. Load session + locations
             async let s = api.getSession(id: sessionId)
             async let l = api.getSessionLocations(sessionId: sessionId)
 
             let loadedSession = try await s
             let loadedLocations = try await l
-
             await MainActor.run {
                 self.session = loadedSession
-                self.locations = loadedLocations.sorted { $0.recordedAt < $1.recordedAt }
+                let sortedLocs = loadedLocations.sorted { $0.recordedAt < $1.recordedAt }
+                self.locations = sortedLocs
 
-                // 🔍 Debug: print each location type
-                for loc in self.locations {
-                    print("📍 Location type:", loc.gpsLocationTypeId)
+                var processedPoints: [RoutePoint] = []
+
+                for i in 0..<sortedLocs.count {
+                    let current = sortedLocs[i]
+                    var calculatedPace: Double = 0
+                    
+                    // Calculate pace relative to the previous point
+                    if i > 0 {
+                        let previous = sortedLocs[i-1]
+                        let currLoc = CLLocation(latitude: current.latitude, longitude: current.longitude)
+                        let prevLoc = CLLocation(latitude: previous.latitude, longitude: previous.longitude)
+                        
+                        let distance = currLoc.distance(from: prevLoc) // meters
+                        let time = current.recordedAt.timeIntervalSince(previous.recordedAt) // seconds
+                        
+                        if distance > 0.5 { // ignore tiny movements to avoid infinite pace
+                            // pace = seconds per kilometer
+                            calculatedPace = time / (distance / 1000)
+                        }
+                    }
+
+                    // Determine marker type
+                    var pointType: String? = nil
+                    if current.gpsLocationTypeId == cpTypeId { pointType = "CP" }
+                    else if current.gpsLocationTypeId == wpTypeId { pointType = "WP" }
+                    
+                    if i == 0 { pointType = "START" }
+                    else if i == sortedLocs.count - 1 { pointType = "END" }
+
+                    processedPoints.append(RoutePoint(
+                        coordinate: CLLocationCoordinate2D(latitude: current.latitude, longitude: current.longitude),
+                        pace: calculatedPace,
+                        type: pointType
+                    ))
                 }
 
+                locationVM.route = processedPoints
                 zoomToRoute()
                 isLoading = false
             }
@@ -174,7 +187,6 @@ struct SessionDetailView: View {
             isLoading = false
         }
     }
-
     
     func zoomToRoute() {
         guard !locations.isEmpty else { return }
@@ -201,10 +213,18 @@ struct SessionDetailView: View {
         return String(format: "%02d:%02d:%02d", h, m, s)
     }
     
-    func formatPace(_ secPerKm: Int) -> String {
-        let m = secPerKm / 60
-        let s = secPerKm % 60
-        return "\(m):\(String(format: "%02d", s)) /km"
+    func formatPace(distance: Double, time: Double) -> String {
+        // Basic safety check to avoid division by zero
+        guard distance > 10, time > 0 else { return "--:--" }
+        
+        let secondsPerKm = time / (distance / 1000)
+        
+        // Safety check for unrealistic paces (e.g., standing still)
+        guard secondsPerKm < 3600 else { return "--:--" }
+        
+        let min = Int(secondsPerKm) / 60
+        let sec = Int(secondsPerKm) % 60
+        return String(format: "%d:%02d", min, sec)
     }
     func exportGPX() {
         let gpxString = GPXExporter.makeGPX(locations: locations)

@@ -52,7 +52,6 @@ final class APIClient {
         
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
             
-            // 2. Attach query items (e.g., ?email=test@test.com)
             if let queryItems = queryItems {
                 components?.queryItems = queryItems
             }

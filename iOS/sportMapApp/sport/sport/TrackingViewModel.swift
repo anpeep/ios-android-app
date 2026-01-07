@@ -13,7 +13,7 @@ import Combine
 @MainActor
 final class TrackingViewModel: ObservableObject {
     @Published var isTracking = false
-    
+    @Published var selectedSession: GpsSessionListItem?
     private let api = GpsApiService()
     private var timer: Timer?
     @Published var showEndSessionDialog = false
@@ -21,7 +21,7 @@ final class TrackingViewModel: ObservableObject {
     @Published var sessionStartTime: String?
     @Published var sessionName = ""
     @Published var sessionDescription = ""
-
+    @Published var showSettings = false
     // Internal state for the API
     private var sessionId: String?
     private var locTypeId: String?
@@ -65,6 +65,18 @@ final class TrackingViewModel: ObservableObject {
             }
         }
     }
+    func loadSessionDetails(id: String) {
+            Task {
+                do {
+                    let sessionData = try await gpsService.getSession(id: id)
+                    await MainActor.run {
+                        self.selectedSession = sessionData
+                    }
+                } catch {
+                    print("Detailed fetch failed: \(error)")
+                }
+            }
+        }
     // MARK: - The Timer Logic
     private func startTimer(locationVM: LocationManager) {
         timer?.invalidate()
@@ -78,7 +90,6 @@ final class TrackingViewModel: ObservableObject {
     }
     func finishSession(locationVM: LocationManager) {
         Task {
-            // 1. Always stop local tracking immediately
             locationVM.stopTracking()
             self.timer?.invalidate()
             self.timer = nil
@@ -134,6 +145,7 @@ final class TrackingViewModel: ObservableObject {
             print("❌ Timer: Failed to send location: \(error)")
         }
     }
+    
 
     // MARK: - Checkpoints (Manual)
     func sendCheckpoint(locationVM: LocationManager) {

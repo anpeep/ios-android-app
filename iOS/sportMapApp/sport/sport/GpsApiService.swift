@@ -72,7 +72,7 @@ final class GpsApiService {
         name: String,
         description: String,
         recordedAt: String,
-        sessionTypeId: String
+        sessionTypeId: String,
     ) async throws {
         
         // Create a concrete struct instead of [String: Any]

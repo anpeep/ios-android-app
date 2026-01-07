@@ -46,6 +46,7 @@ struct GpsSessionResponse: Codable {
     let gpsSessionTypeId: String
 }
 
+
 struct CreateGpsLocationRequest: Codable {
     let recordedAt: String
     let latitude: Double
@@ -85,4 +86,3 @@ struct GpsSessionListItem: Codable, Identifiable {
     let gpsLocationsCount: Int
     let userFirstLastName: String
 }
-
