@@ -25,6 +25,7 @@ final class APIClient {
         }
     }
 
+
     func loadTokenFromStorage() {
         token = UserDefaults.standard.string(forKey: "jwt_token")
     }

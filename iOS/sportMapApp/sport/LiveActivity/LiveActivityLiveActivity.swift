@@ -9,13 +9,37 @@ struct LiveActivityLiveActivity: Widget {
         ActivityConfiguration(for: TrackingAttributes.self) { context in
             // LOCK SCREEN UI
             VStack(spacing: 12) {
-                HStack {
+                HStack(alignment: .center) {
                     VStack(alignment: .leading) {
                         Text("Duration").font(.caption).opacity(0.8)
-                        Text(context.attributes.startTime, style: .timer)
-                            .font(.title2).bold()
+                        
+                        if context.state.lastActionName == "Paused" {
+                            // When paused, we show a static duration instead of a ticking timer
+                            Text("PAUSED")
+                                .font(.title2).bold()
+                                .foregroundColor(.yellow)
+                        } else {
+                            Text(context.attributes.startTime, style: .timer)
+                                .font(.title2).bold()
+                                .foregroundColor(.white)
+                        }
                     }
+                    
                     Spacer()
+                    
+                    // Status indicator in the middle
+                    VStack {
+                         Text(context.state.lastActionName)
+                            .font(.caption2).bold()
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(context.state.lastActionName == "Paused" ? Color.yellow : Color.green)
+                            .cornerRadius(4)
+                            .foregroundColor(.black)
+                    }
+                    
+                    Spacer()
+                    
                     VStack(alignment: .trailing) {
                         Text("Distance").font(.caption).opacity(0.8)
                         Text(String(format: "%.2f km", context.state.distanceCovered / 1000))
@@ -27,11 +51,13 @@ struct LiveActivityLiveActivity: Widget {
                 
                 // ACTION BUTTONS
                 HStack {
+                    // We disable buttons visually/functionally on the lockscreen if paused
                     Button(intent: AddCheckpointIntent()) {
                         Label("Checkpoint", systemImage: "flag.fill")
                     }
                     .buttonStyle(.bordered)
                     .tint(.blue)
+                    .opacity(context.state.lastActionName == "Paused" ? 0.5 : 1.0)
                     
                     Spacer()
                     
@@ -40,6 +66,7 @@ struct LiveActivityLiveActivity: Widget {
                     }
                     .buttonStyle(.bordered)
                     .tint(.green)
+                    .opacity(context.state.lastActionName == "Paused" ? 0.5 : 1.0)
                 }
             }
             .padding()
@@ -81,10 +108,19 @@ struct LiveActivityLiveActivity: Widget {
             } compactLeading: {
                 Image(systemName: "figure.walk").foregroundColor(.green)
             } compactTrailing: {
-                Text(context.attributes.startTime, style: .timer)
-                    .foregroundColor(.green)
+                if context.state.lastActionName == "Paused" {
+                    Image(systemName: "pause.fill").foregroundColor(.yellow)
+                } else {
+                    Text(context.attributes.startTime, style: .timer)
+                        .foregroundColor(.green)
+                        .frame(width: 50)
+                }
             } minimal: {
-                Image(systemName: "figure.walk")
+                if context.state.lastActionName == "Paused" {
+                    Image(systemName: "pause.circle.fill").foregroundColor(.yellow)
+                } else {
+                    Image(systemName: "figure.walk")
+                }
             }
         }
     }

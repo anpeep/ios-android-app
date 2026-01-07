@@ -10,9 +10,10 @@ import CoreLocation
 
 import MapKit
 import SwiftUI
+import MapKit
+import SwiftUI
 
 struct MapKitMapView: UIViewRepresentable {
-    // 1. Ensure this is exactly as written
     @ObservedObject var locationManager: LocationManager
     
     func makeUIView(context: Context) -> MKMapView {
@@ -23,7 +24,6 @@ struct MapKitMapView: UIViewRepresentable {
     }
 
     func updateUIView(_ map: MKMapView, context: Context) {
-        // Clear and redraw path
         map.removeOverlays(map.overlays)
         let coords = locationManager.route
         
@@ -32,7 +32,7 @@ struct MapKitMapView: UIViewRepresentable {
             map.addOverlay(polyline)
         }
         
-        // 2. Access property directly. If error persists, clean the build (Cmd+Shift+K)
+        // Use the Bool directly, not a Binding
         if locationManager.keepCentered, let last = coords.last {
             map.setCenter(last, animated: true)
         }
@@ -60,10 +60,10 @@ struct MapKitMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
-            // This logic detects if the change came from a user drag
+            // Checks if the change was a user-initiated drag
             let view = mapView.subviews.first { $0.layer.animation(forKey: "MKMapViewBoundsAnimation") != nil }
             if view == nil {
-                // Access parent property directly
+                // Access property through parent instance
                 parent.locationManager.keepCentered = false
             }
         }

@@ -18,7 +18,7 @@ final class TrackingViewModel: ObservableObject {
     private var timer: Timer?
     @Published var showEndSessionDialog = false
     @Published var showLogs = false
-
+    @Published var sessionStartTime: String?
     @Published var sessionName = ""
     @Published var sessionDescription = ""
 
@@ -46,12 +46,18 @@ final class TrackingViewModel: ObservableObject {
                 let session = try await api.createSession(type: sessionType)
                 self.sessionId = session.id
                 
-                // 2. Start the GPS and the Timer
+                // 2. Start UI, Timer, and Live Activity on Main Thread
                 await MainActor.run {
-                    locationVM.startGPS() // Tell the manager to start getting coordinates
+                    // IMPORTANT: Use the single 'now' for everything
+                    locationVM.startTracking()
+                    
+                    // This starts your 10-second API upload timer
                     self.startTimer(locationVM: locationVM)
+                    self.sessionStartTime = session.recordedAt
+
                     self.isTracking = true
                 }
+
                 print("✅ Tracking started with session: \(session.id)")
                 
             } catch {
@@ -59,18 +65,14 @@ final class TrackingViewModel: ObservableObject {
             }
         }
     }
-
     // MARK: - The Timer Logic
     private func startTimer(locationVM: LocationManager) {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            
-            // Pull the latest location from the LocationManager
-            if let latestLocation = locationVM.lastLocation {
-                Task {
-                    await self.sendLocation(latestLocation)
-                }
+            Task { @MainActor in
+                // We are now on the Main Actor, it is safe to read locationVM properties
+                guard let self = self, let latestLocation = locationVM.lastLocation else { return }
+                await self.sendLocation(latestLocation)
             }
         }
     }
@@ -81,8 +83,11 @@ final class TrackingViewModel: ObservableObject {
             self.timer?.invalidate()
             self.timer = nil
             
-            guard let sessionId = sessionId, let locTypeId = locTypeId else {
+            guard let sessionId = sessionId,
+                    let startTime = sessionStartTime,
+                let locTypeId = locTypeId else {
                 print("⚠️ No Session ID found, closing dialog anyway")
+                
                 self.showEndSessionDialog = false
                 self.isTracking = false
                 return
@@ -94,6 +99,7 @@ final class TrackingViewModel: ObservableObject {
                     sessionId: sessionId,
                     name: sessionName,
                     description: sessionDescription,
+                    recordedAt: startTime,
                     sessionTypeId: locTypeId,
                 )
                 print("✅ API Update Success")
@@ -109,6 +115,7 @@ final class TrackingViewModel: ObservableObject {
                 self.sessionName = ""
                 self.sessionDescription = ""
                 self.sessionId = nil // Important: Clear for next session
+                self.sessionStartTime = nil
             }
         }
     }

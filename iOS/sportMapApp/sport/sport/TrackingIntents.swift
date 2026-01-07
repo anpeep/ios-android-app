@@ -16,12 +16,14 @@ struct AddCheckpointIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         // 1. Get shared defaults
         let shared = UserDefaults(suiteName: "group.taltech.anpeep.sport")
-        
+        if shared?.bool(forKey: "is_paused") == true {
+            return .result() // Do nothing
+        }
         // 2. Logic to increment checkpoints
         let currentCount = shared?.integer(forKey: "checkpoint_count") ?? 0
         shared?.set(currentCount + 1, forKey: "checkpoint_count")
-        
-        // 3. Mark that a change happened
+    
+        shared?.set(false, forKey: "action_consumed")
         shared?.set("CP", forKey: "pending_action")
 
         print("Checkpoint added via Live Activity!")
@@ -35,10 +37,12 @@ struct AddWaypointIntent: LiveActivityIntent {
     
     func perform() async throws -> some IntentResult {
         let shared = UserDefaults(suiteName: "group.taltech.anpeep.sport")
-        
+        if shared?.bool(forKey: "is_paused") == true {
+            return .result() // Do nothing
+        }
         let currentCount = shared?.integer(forKey: "waypoint_count") ?? 0
         shared?.set(currentCount + 1, forKey: "waypoint_count")
-        
+        shared?.set(false, forKey: "action_consumed")
         shared?.set("WP", forKey: "pending_action")
 
         print("Waypoint added via Live Activity!")

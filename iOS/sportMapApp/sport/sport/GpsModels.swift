@@ -46,8 +46,6 @@ struct GpsSessionResponse: Codable {
     let gpsSessionTypeId: String
 }
 
-// MARK: - Post Location
-
 struct CreateGpsLocationRequest: Codable {
     let recordedAt: String
     let latitude: Double
@@ -57,6 +55,20 @@ struct CreateGpsLocationRequest: Codable {
     let verticalAccuracy: Double
     let gpsLocationTypeId: String
 }
+
+struct GpsLocationDTO: Codable, Identifiable {
+    let id: String
+    let recordedAt: Date
+    let latitude: Double
+    let longitude: Double
+    let accuracy: Double
+    let altitude: Double
+    let verticalAccuracy: Double
+    let appUserId: String
+    let gpsSessionId: String
+    let gpsLocationTypeId: String
+}
+
 struct GpsSessionListItem: Codable, Identifiable {
     let id: String
     let name: String?
