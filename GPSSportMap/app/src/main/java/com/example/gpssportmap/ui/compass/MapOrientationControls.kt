@@ -134,7 +134,7 @@ private fun OrientationIconButton(
         tint = iconColor,
         modifier = Modifier
             .size(48.dp)
-            .shadow(4.dp, CircleShape) // Add a shadow for depth
+            .shadow(4.dp, CircleShape)
             .background(backgroundColor, CircleShape)
             .clip(CircleShape)
             .clickable(onClick = onClick)
@@ -145,7 +145,7 @@ private fun OrientationIconButton(
 @Composable
 fun CompassView(
     azimuth: Float,
-    modifier: Modifier = Modifier, // <-- ADD THIS PARAMETER
+    modifier: Modifier = Modifier,
     size: Dp = 38.dp
 ) {
 
@@ -172,8 +172,8 @@ fun CompassView(
 }
 
 enum class MapOrientationMode {
-    COMPASS, // Rotates with the phone's physical orientation
-    NORTH,   // Always points North up
-    CENTER,  // Keeps the user's location centered
-    USER_CHOOSE // User is manually panning/zooming
+    COMPASS,
+    NORTH,  
+    CENTER, 
+    USER_CHOOSE
 }

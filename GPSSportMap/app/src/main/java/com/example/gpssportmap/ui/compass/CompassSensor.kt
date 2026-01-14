@@ -37,25 +37,25 @@ class CompassSensor(context: Context) : SensorEventListener {
             Sensor.TYPE_ACCELEROMETER -> System.arraycopy(event.values, 0, accel, 0, 3)
             Sensor.TYPE_MAGNETIC_FIELD -> System.arraycopy(event.values, 0, magnet, 0, 3)
         }
-        val R = FloatArray(9)
-        val I = FloatArray(9)
-        if (SensorManager.getRotationMatrix(R, I, accel, magnet)) {
+        val r = FloatArray(9)
+        val i = FloatArray(9)
+        if (SensorManager.getRotationMatrix(r, i, accel, magnet)) {
             val orientation = FloatArray(3)
-            SensorManager.getOrientation(R, orientation)
+            SensorManager.getOrientation(r, orientation)
             val az = Math.toDegrees(orientation[0].toDouble()).toFloat()
 
-            // --- SUGGESTION: Apply a low-pass filter ---
+           
             _azimuth.value = applyLowPassFilter((az + 360) % 360)
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
-    // --- SUGGESTION: Add this helper function ---
+   
     private fun applyLowPassFilter(newAzimuth: Float): Float {
-        val alpha = 0.4f // Smoothing factor (0.0 to 1.0). Lower values mean more smoothing.
+        val alpha = 0.4f
 
-        // Handle the 360/0 degree wrap-around
+       
         val diff = newAzimuth - lastAzimuth
         if (kotlin.math.abs(diff) > 180) {
             if (diff > 0) {

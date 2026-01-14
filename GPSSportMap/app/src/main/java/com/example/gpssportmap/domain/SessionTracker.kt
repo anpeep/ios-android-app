@@ -141,10 +141,10 @@ class SessionTracker @Inject constructor(
         if (_sessionState.value != SessionState.RUNNING) return
         _trackLocations.update { it + location }
 
-        // 2. Get the updated list of locations.
+
         val updatedLocations = _trackLocations.value
 
-        // 3. If there are at least two points, calculate the distance between the last two.
+
         if (updatedLocations.size > 1) {
             val lastLocation = updatedLocations[updatedLocations.size - 1]
             val secondToLastLocation = updatedLocations[updatedLocations.size - 2]
@@ -163,10 +163,10 @@ class SessionTracker @Inject constructor(
                 longitude = lastWpLocation.longitude
             }
 
-            // Direct line distance
+
             _distanceFromLastWaypoint.value = location.distanceTo(lastWaypointLocation).toDouble()
 
-            // Path distance from last waypoint
+
             val lastWaypointIndex = _trackLocations.value.indexOfLast {
                 it.latitude == lastWpLocation.latitude &&
                         it.longitude == lastWpLocation.longitude

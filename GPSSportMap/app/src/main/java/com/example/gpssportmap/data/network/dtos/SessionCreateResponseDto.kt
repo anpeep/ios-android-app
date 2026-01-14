@@ -8,13 +8,13 @@ data class SessionCreateResponseDto(
     val name: String,
     val description: String,
     val recordedAt: String,
-    val duration: Double,   // <- was Int
-    val speed: Double,      // <- was Int
-    val distance: Double,   // <- was Int
-    val climb: Double,      // <- was Int
-    val descent: Double,    // <- was Int
-    val paceMin: Double,    // <- was Int
-    val paceMax: Double,    // <- was Int
+    val duration: Double,   
+    val speed: Double,      
+    val distance: Double,   
+    val climb: Double,      
+    val descent: Double,    
+    val paceMin: Double,    
+    val paceMax: Double,    
     val gpsSessionTypeId: String,
     val appUserId: String
 )

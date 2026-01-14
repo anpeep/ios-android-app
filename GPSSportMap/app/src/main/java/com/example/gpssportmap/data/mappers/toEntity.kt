@@ -58,11 +58,11 @@ fun Location.toGpsLocationCreateDto(
 
 fun GpsLocationCreateDto.toEntity(
     gpsSessionId: String,
-    gpsLocationTypeId: String, // <-- 1. ADD this parameter
-    appUserId: String         // 2. Make appUserId nullable, as it might not always exist
+    gpsLocationTypeId: String, 
+    appUserId: String         
 ): GpsLocationsEntity =
     GpsLocationsEntity(
-        id = "", // IMPORTANT: Let Room auto-generate the ID for local inserts. Don't use UUID here.
+        id = "", 
         recordedAt = recordedAt,
         latitude = latitude,
         longitude = longitude,
@@ -70,9 +70,9 @@ fun GpsLocationCreateDto.toEntity(
         altitude = altitude,
         verticalAccuracy = verticalAccuracy,
         gpsSessionId = gpsSessionId,
-        gpsLocationTypeId = gpsLocationTypeId, // 3. NOW it uses the parameter you passed in
+        gpsLocationTypeId = gpsLocationTypeId, 
         appUserId = appUserId,
-        synced = false // It's good practice to set this explicitly for new local entries
+        synced = false 
     )
 
 fun SessionResponseDto.toEntity(appUserId: String) =
@@ -82,12 +82,12 @@ fun SessionResponseDto.toEntity(appUserId: String) =
         description = description,
         recordedAt = recordedAt,
         duration = duration,
-        speed = speed.toDouble(),
-        distance = distance.toDouble(),
-        climb = climb.toDouble(),
-        descent = descent.toDouble(),
-        paceMin = paceMin.toDouble(),
-        paceMax = paceMax.toDouble(),
+        speed = speed,
+        distance = distance,
+        climb = climb,
+        descent = descent,
+        paceMin = paceMin,
+        paceMax = paceMax,
         gpsSessionTypeId = this.getCorrectSessionTypeId(),
         appUserId = appUserId
     )
@@ -99,12 +99,12 @@ fun SessionCreateResponseDto.toEntity(): GpsSessionsEntity =
         description = description,
         recordedAt = recordedAt,
         duration = duration,
-        speed = speed.toDouble(),
-        distance = distance.toDouble(),
-        climb = climb.toDouble(),
-        descent = descent.toDouble(),
-        paceMin = paceMin.toDouble(),
-        paceMax = paceMax.toDouble(),
+        speed = speed,
+        distance = distance,
+        climb = climb,
+        descent = descent,
+        paceMin = paceMin,
+        paceMax = paceMax,
         appUserId = appUserId,
         gpsSessionTypeId = gpsSessionTypeId,
     )

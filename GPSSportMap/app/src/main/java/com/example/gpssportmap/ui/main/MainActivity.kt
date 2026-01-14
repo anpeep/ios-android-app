@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -127,12 +128,9 @@ class MainActivity : ComponentActivity() {
                 this,
                 Intent(this, NotificationService::class.java).apply { action = C.ACTION_START })
         }
-        val onPreviewLocationService = { startPreviewLocationService() }
-
         setContent {
             AppRoot(
                 onStartLocationService = onStartNotificationService,
-                onPreviewLocationService = onPreviewLocationService
             )
         }
     }
@@ -140,12 +138,6 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         stopLocationService()
         super.onDestroy()
-    }
-
-    private fun startPreviewLocationService() {
-        val intent =
-            Intent(this, NotificationService::class.java).apply { action = "ACTION_PREVIEW" }
-        ContextCompat.startForegroundService(this, intent)
     }
 
     private fun stopLocationService() {
@@ -158,7 +150,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppRoot(
     onStartLocationService: () -> Unit,
-    onPreviewLocationService: () -> Unit
 ) {
     val navController = rememberNavController()
     val authVm: AuthViewModel = hiltViewModel()
@@ -468,7 +459,7 @@ fun OldSessionsScreen(repo: SessionRepository, navController: NavController) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding) // This ensures the list starts below the TopAppBar
+                    .padding(padding)
             ) {
                 items(savedSessions) { session ->
                     SessionListItem(
@@ -489,14 +480,14 @@ fun OldSessionsScreen(repo: SessionRepository, navController: NavController) {
             }
         }
         renameSession?.let { session ->
-            // Initialize newName when dialog opens
+           
             LaunchedEffect(session) {
                 newName = session.name
             }
 
             RenameSessionDialog(
                 currentName = newName,
-                onValueChange = { newName = it }, // ✅ now typing works
+                onValueChange = { newName = it },
                 onDismiss = { renameSession = null },
                 onConfirm = { confirmedName ->
                     scope.launch {
@@ -513,7 +504,7 @@ fun OldSessionsScreen(repo: SessionRepository, navController: NavController) {
 @Composable
 fun RenameSessionDialog(
     currentName: String,
-    onValueChange: (String) -> Unit, // NEW: pass updated text to parent
+    onValueChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
@@ -523,7 +514,7 @@ fun RenameSessionDialog(
         text = {
             TextField(
                 value = currentName,
-                onValueChange = onValueChange, // ✅ use parent state
+                onValueChange = onValueChange,
                 singleLine = true,
                 label = { Text("Session name") }
             )
@@ -613,20 +604,20 @@ fun LiveMapWithCompass(
         }
     }
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        // This LaunchedEffect will run when points change or the layout size changes.
+       
         LaunchedEffect(points, constraints) {
             if (points.size > 1) {
                 val boundsBuilder = LatLngBounds.builder()
                 points.forEach { boundsBuilder.include(it) }
                 val bounds = boundsBuilder.build()
 
-                // Use the constraints to calculate dynamic padding.
+               
                 val padding = (minOf(constraints.maxWidth, constraints.maxHeight) * 0.2).toInt()
 
-                // Animate the camera to show the entire track with the calculated padding.
+               
                 cameraPositionState.animate(
                     CameraUpdateFactory.newLatLngBounds(bounds, padding),
-                    1000 // Animation duration in ms
+                    1000
                 )
             }
         }
@@ -686,12 +677,11 @@ fun LiveMapWithCompass(
     }
 }
 
+
 @Composable
 fun isLandscape(): Boolean {
-    val context = LocalContext.current
-    return context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-}
-
+    val configuration = LocalConfiguration.current
+    return configuration.orientation == Configuration.ORIENTATION_LANDSCAPE}
 
 @Composable
 private fun StatItem(label: String, value: String) {
@@ -882,13 +872,13 @@ fun MainScreen(
                 )
                 Row(
                     modifier = Modifier
-                        .align(Alignment.TopStart) // Aligned to top-left
+                        .align(Alignment.TopStart)
                         .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp) // Adds space between buttons
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Using TextButton as in your original portrait layout
+                   
                     TextButton(
-                        onClick = onReset, // Corrected onClick
+                        onClick = onReset,
                         enabled = sessionState != SessionState.IDLE
                     ) {
                         Text("Reset")
@@ -899,14 +889,14 @@ fun MainScreen(
                             contentDescription = "Open History"
                         )
                     }
-                    IconButton(onClick = { showOptions = true }) { // Corrected onClick
+                    IconButton(onClick = { showOptions = true }) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_options),
                             contentDescription = "Options"
                         )
                     }
                 }
-                // --- END OF CORRECTION ---
+               
 
             }
             Column(
@@ -927,7 +917,7 @@ fun MainScreen(
                 StatItem(label = "CP Pace", value = Utils.formatPace(cpPace))
                 Spacer(Modifier.height(8.dp))
                 StatItem(label = "From WP", value = "${wpDist.toInt()} m")
-                // Note: You have a small copy-paste error here, using cpDirectDist for the WP direct distance
+               
                 StatItem(label = "Direct", value = "${cpDirectDist.toInt()} m")
                 StatItem(label = "WP Pace", value = Utils.formatPace(wpPace))
             }
@@ -1159,8 +1149,8 @@ fun SpeedColorSettings(
     settings: Utils.SessionColorSettings,
     onChange: (Utils.SessionColorSettings) -> Unit,
 ) {
-    // --- START: Dynamic Value Range Calculation ---
-    // Define your desired default range for the slider.
+   
+   
     val defaultMin = 3f
     val defaultMax = 15f
     val sanitizedPaceMax = settings.paceMax.toFloat().coerceAtMost(settings.paceMin.toFloat())

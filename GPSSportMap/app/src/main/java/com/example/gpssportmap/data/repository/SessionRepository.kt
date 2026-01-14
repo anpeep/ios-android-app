@@ -82,26 +82,26 @@ class SessionRepository @Inject constructor(
 
     @Transaction
     suspend fun syncSessionLocations(sessionId: String) {
-        // FIX: The entire function body is now inside withContext(Dispatchers.IO)
+       
         withContext(Dispatchers.IO) {
-            // Step 1: Ensure parent entities (types) exist first.
-            // This fetches types from the API and inserts them if the table is empty.
-            if (sessionTypeDao.count() == 0) { // Now runs on IO thread
+           
+           
+            if (sessionTypeDao.count() == 0) {
                 val remoteSessionTypes = api.getSessionTypes()
                 sessionTypeDao.insertAll(remoteSessionTypes.map { it.toEntity() })
             }
-            if (locationTypeDao.count() == 0) { // Now runs on IO thread
+            if (locationTypeDao.count() == 0) {
                 val remoteLocationTypes = api.getGpsLocationTypes()
                 locationTypeDao.insertAll(remoteLocationTypes.map { it.toEntity() })
             }
 
-            // Step 2: Now that types are guaranteed to exist, fetch and insert the session.
+           
             val remoteSession = api.getSession(sessionId)
             sessionDao.update(
                 remoteSession.toEntity(tokenStore.getAppUserId())
             )
 
-            // Step 3: Finally, fetch and insert the locations for that session.
+           
             val remoteLocations = api.getLocationsForSession(sessionId)
             locationDao.deleteForSession(sessionId)
 
@@ -109,8 +109,8 @@ class SessionRepository @Inject constructor(
                 remoteLocations.map { it.toEntity().copy(synced = true) }
             )
 
-        } // This brace correctly closes withContext
-    } // This brace correctly closes the function
+        }
+    }
 
 
     fun requireToken(): String =
@@ -155,11 +155,11 @@ class SessionRepository @Inject constructor(
         dto: GpsLocationCreateDto,
         gpsLocationTypeId: String
     ) {
-        withContext(Dispatchers.IO) { // Run network call on a background thread
+        withContext(Dispatchers.IO) {
             try {
                 api.addLocation(sessionId, dto)
             } catch (e: Exception) {
-                // Log the error instead of ignoring it. This will help debug network issues.
+               
                 Log.e("SessionRepository", "Failed to add location to server: ${e.message}")
             }
         }
@@ -197,22 +197,22 @@ class SessionRepository @Inject constructor(
         distance: Double,
         avgSpeed: Double
     ) {
-        // --- START: New logic to update the server ---
+       
 
-        // 1. Get the current session details from the local database
+       
         val session = sessionDao.getSessionById(sessionId)
 
-        // 2. Create the Data Transfer Object (DTO) with the final stats
+       
         val dto = GpsSessionsUpdateDto(
             id = session.id,
-            name = session.name, // Keep existing name
-            description = session.description, // Keep existing description
+            name = session.name,
+            description = session.description,
             gpsSessionTypeId = session.gpsSessionTypeId,
             recordedAt = session.recordedAt,
             paceMin = if (distance > 0) (duration / 60.0) / (distance / 1000.0) else null,
 
-            // You don't have a final max pace, so sending null is correct.
-            paceMax = null  // You can add logic for paceMax if you track it
+           
+            paceMax = null 
         )
         withContext(Dispatchers.IO) {
             try {
@@ -236,7 +236,7 @@ class SessionRepository @Inject constructor(
 
     fun getSessionWaypoints(sessionId: String): Flow<List<LatLng>> =
         locationDao.getLocationsByType(sessionId, C.LOCATION_TYPE_WP)
-            .map { it.map { loc -> LatLng(loc.latitude.toDouble(), loc.longitude.toDouble()) } }
+            .map { it.map { loc -> LatLng(loc.latitude, loc.longitude) } }
 
     fun getLocationsForSession(sessionId: String): Flow<List<GpsLocationsEntity>> {
         return locationDao.getLocationsForSession(sessionId)
@@ -248,7 +248,7 @@ class SessionRepository @Inject constructor(
 
     suspend fun getLastKnownLatLng(): LatLng? {
         return locationDao.getLastLocation()?.let {
-            LatLng(it.latitude.toDouble(), it.longitude.toDouble())
+            LatLng(it.latitude, it.longitude)
         }
     }
 

@@ -1,11 +1,9 @@
 package com.example.gpssportmap.utils
 
 object C {
-    const val MAX_REASONABLE_DISTANCE_METERS = 100.0
     const val NOTIFICATION_CHANNEL = "default_channel"
     const val NOTIFICATION_ID = 123
     const val KEY_USER_ID = "key_user_id"
-    const val ACTION_STOP = "ACTION_STOP"
     const val ACTION_START = "ACTION_START"
     const val ACTION_ADD_CP = "ACTION_ADD_CP"
     const val ACTION_ADD_WP = "ACTION_ADD_WP"

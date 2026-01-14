@@ -40,7 +40,7 @@ class SessionDetailViewModel @Inject constructor(
 ) : ViewModel() {
     val sessionId: String = savedStateHandle.get<String>("sessionId")!!
 
-    // Inside SessionDetailViewModel.kt
+   
     private val _azimuth = MutableStateFlow(0f)
     val azimuth: StateFlow<Float> = _azimuth
 
@@ -59,11 +59,11 @@ class SessionDetailViewModel @Inject constructor(
         points.map { LatLng(it.latitude, it.longitude) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val settings: StateFlow<Utils.SessionColorSettings> = settingsRepository.settingsFlow
-        .map { it.toSessionColorSettings() } // Assuming you have this extension function
+        .map { it.toSessionColorSettings() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = Utils.SessionColorSettings() // The initial value lives HERE
+            initialValue = Utils.SessionColorSettings()
         )
 
     fun Utils.SessionColorSettings.toGpsSettings(): Utils.SessionColorSettings {
@@ -79,7 +79,7 @@ class SessionDetailViewModel @Inject constructor(
 
     fun updateSettings(settings: Utils.SessionColorSettings) {
         viewModelScope.launch {
-            // Now convert the object before passing it to the repository
+           
             settingsRepository.updateSettings(settings.toGpsSettings())
         }
     }

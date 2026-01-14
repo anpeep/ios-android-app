@@ -27,8 +27,8 @@ class LifecycleManager @Inject constructor() : Application.ActivityLifecycleCall
     }
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
-    override fun onActivityResumed(activity: Activity) {} // No longer needed
-    override fun onActivityPaused(activity: Activity) {} // No longer needed
+    override fun onActivityResumed(activity: Activity) {}
+    override fun onActivityPaused(activity: Activity) {}
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
     override fun onActivityDestroyed(activity: Activity) {}
 }

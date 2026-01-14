@@ -84,11 +84,11 @@ class MainViewModel @Inject constructor(
 
     val settings: StateFlow<Utils.SessionColorSettings> =
         settingsRepository.settingsFlow
-            .map { it.toSessionColorSettings() } // Use the extension function
+            .map { it.toSessionColorSettings() }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = Utils.SessionColorSettings() // Provide a default initial value
+                initialValue = Utils.SessionColorSettings()
             )
     val totalDistanceMeters: StateFlow<Double> = tracker.totalDistanceMeters
     val distanceFromWaypoint: StateFlow<Double> = tracker.distanceFromWaypoint

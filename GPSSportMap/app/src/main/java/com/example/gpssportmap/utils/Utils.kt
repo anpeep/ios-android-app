@@ -23,7 +23,7 @@ object Utils {
 
     data class SessionColorSettings(
         val paceMin: Double = 0.5,
-        val paceMax: Double = 100.0  // Default fastest pace
+        val paceMax: Double = 100.0 
     )
 
     fun SessionColorSettings.toSessionColorSettings(): SessionColorSettings {
@@ -43,8 +43,8 @@ object Utils {
     fun paceToColor(pace: Double, min: Double, max: Double): Color {
         val t = ((pace - min) / (max - min)).coerceIn(0.0, 1.0)
         return lerp(
-            Color.Green, // fast
-            Color.Red,   // slow
+            Color.Green,
+            Color.Red,  
             t.toFloat()
         )
     }
@@ -67,7 +67,7 @@ object Utils {
                 Double.MAX_VALUE
             } else {
                 val speedMps = distanceMeters / timeSec
-                (1000.0 / speedMps) / 60.0 // min/km
+                (1000.0 / speedMps) / 60.0
             }
         }
     }
