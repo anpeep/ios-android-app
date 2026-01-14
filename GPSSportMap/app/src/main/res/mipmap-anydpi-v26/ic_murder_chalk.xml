@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+    The background layer is optional. You can use a solid color
+    or another drawable. It will be masked by the system.
+    -->
+    <background android:drawable="@color/black" />
+
+    <!--
+    The foreground layer is your actual icon.
+    Replace '@drawable/ic_murder_chalk' with the real name of your icon's
+    source file (e.g., a PNG or a Vector Drawable XML).
+    It should NOT be the bitmap XML file that points to another file.
+    -->
+    <foreground android:drawable="@drawable/ic_murder_chalk" />
+</adaptive-icon>

@@ -8,13 +8,15 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
-import androidx.activity.addCallback
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -22,20 +24,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RangeSlider
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -43,122 +58,152 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.gpssportmap.data.db.GpsLocationEntity
-import com.example.gpssportmap.data.db.GpsSessionEntity
-import com.example.gpssportmap.service.LocationService
+import androidx.navigation.navArgument
+import com.example.gpssportmap.R
+import com.example.gpssportmap.data.db.entities.GpsSessionsEntity
+import com.example.gpssportmap.data.network.ApiService
+import com.example.gpssportmap.data.repository.SessionRepository
+import com.example.gpssportmap.domain.NotificationService
+import com.example.gpssportmap.domain.SessionState
+import com.example.gpssportmap.ui.auth.AuthScreen
+import com.example.gpssportmap.ui.auth.AuthViewModel
+import com.example.gpssportmap.ui.auth.hasBackgroundPermission
+import com.example.gpssportmap.ui.auth.hasForegroundPermissions
+import com.example.gpssportmap.ui.compass.CompassView
 import com.example.gpssportmap.ui.compass.MapOrientationControls
 import com.example.gpssportmap.ui.compass.MapOrientationMode
 import com.example.gpssportmap.utils.C
-import com.example.gpssportmap.utils.hasBackgroundPermission
-import com.example.gpssportmap.utils.hasForegroundPermissions
 import com.example.gpssportmap.utils.Utils
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import dagger.hilt.android.AndroidEntryPoint
-import java.util.UUID
+import kotlinx.coroutines.launch
+import java.io.File
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var sessionRepository: SessionRepository
+    @Inject
+    lateinit var api: ApiService
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        onBackPressedDispatcher.addCallback(this) {
-            moveTaskToBack(true)
+        val onStartNotificationService = {
+            ContextCompat.startForegroundService(
+                this,
+                Intent(this, NotificationService::class.java).apply { action = C.ACTION_START })
         }
+        val onPreviewLocationService = { startPreviewLocationService() }
+
         setContent {
             AppRoot(
-                onStartLocationService = { startTrackingLocationService() },
-                onStopLocationService = { stopLocationService() },
-                onPreviewLocationService = { startPreviewLocationService() }
+                onStartLocationService = onStartNotificationService,
+                onPreviewLocationService = onPreviewLocationService
             )
         }
     }
 
-
     override fun onDestroy() {
+        stopLocationService()
         super.onDestroy()
     }
 
     private fun startPreviewLocationService() {
-        val intent = Intent(this, LocationService::class.java).apply {
-            action = "ACTION_PREVIEW"
-        }
+        val intent =
+            Intent(this, NotificationService::class.java).apply { action = "ACTION_PREVIEW" }
         ContextCompat.startForegroundService(this, intent)
     }
 
-    private fun startTrackingLocationService() {
-        val intent = Intent(this, LocationService::class.java).apply {
-            action = "ACTION_START"
-        }
-        ContextCompat.startForegroundService(this, intent)
-    }
     private fun stopLocationService() {
-        val intent = Intent(this, LocationService::class.java).apply {
-            action = "ACTION_STOP"
-        }
-        startService(intent)
+        val intent =
+            Intent(this, NotificationService::class.java).apply { action = "ACTION_STOP" }
+        ContextCompat.startForegroundService(this, intent)
     }
 }
 
 @Composable
 fun AppRoot(
     onStartLocationService: () -> Unit,
-    onStopLocationService: () -> Unit,
     onPreviewLocationService: () -> Unit
 ) {
     val navController = rememberNavController()
+    val authVm: AuthViewModel = hiltViewModel()
+    val startDestination = if (authVm.isLoggedIn()) "main" else "auth"
 
-    NavHost(navController, startDestination = "auth") {
+    NavHost(navController, startDestination = startDestination) {
         composable("auth") {
-            val authVm: AuthViewModel = hiltViewModel()
             AuthScreen(viewModel = authVm) {
                 navController.navigate("main") {
-                    popUpTo("auth") { inclusive = true }
+                    popUpTo("auth") {
+                        inclusive = true
+                    }
                 }
             }
         }
-
-
         composable("main") {
-            PermissionController(
-                onPermissionsGranted = {
-                    MainContent(
-                        onStartLocationService = onStartLocationService,
-                        onStopLocationService = onStopLocationService,
-                        navController = navController,
-                        onPreviewLocationService = onPreviewLocationService
-                    )
-                }
-            )
+            PermissionController(onPermissionsGranted = {
+                val mainVm: MainViewModel = hiltViewModel()
+
+                MainContent(
+                    onStartLocationService = onStartLocationService,
+                    navController = navController,
+                    vm = mainVm
+                )
+            })
         }
         composable("old_sessions") {
             val mainVm: MainViewModel = hiltViewModel()
-            OldSessionsScreen(mainVm = mainVm)
+            OldSessionsScreen(repo = mainVm.sessionRepository, navController = navController)
+        }
+        composable(
+            route = "session_detail/{sessionId}",
+            arguments = listOf(navArgument("sessionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+
+            val sessionId = backStackEntry.arguments!!.getString("sessionId")!!
+
+            val viewModel: SessionDetailViewModel = hiltViewModel(
+                key = "SessionDetailViewModel_$sessionId"
+            )
+
+            SessionDetailScreen(
+                sessionVm = viewModel,
+                navController = navController
+            )
         }
     }
 }
@@ -166,49 +211,190 @@ fun AppRoot(
 @Composable
 fun MainContent(
     onStartLocationService: () -> Unit,
-    onStopLocationService: () -> Unit,
     navController: NavController,
-    onPreviewLocationService: () -> Unit
+    vm: MainViewModel
 ) {
-    val mainVm: MainViewModel = hiltViewModel()
-    LaunchedEffect(Unit) {
-        onPreviewLocationService()
-    }
-
     val lifecycleOwner = LocalLifecycleOwner.current
-    var showSaveDialog by rememberSaveable { mutableStateOf(false) }
-    if (showSaveDialog) {
-        SaveSessionDialog(
-            onDismiss = {
-                showSaveDialog = false
-                onStopLocationService()
-            },
-            onConfirm = { name, description ->
-                showSaveDialog = false
-                mainVm.updateSession(name, description)
-                onStopLocationService()
-            }
-        )
-    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                mainVm.startCompass()
+                vm.startCompass()
+            } else if (event == Lifecycle.Event.ON_PAUSE) {
+                vm.stopCompass()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+    var showSaveDialog by rememberSaveable { mutableStateOf(false) }
+
+    if (showSaveDialog) {
+        SaveSessionDialog(
+            onDismiss = { showSaveDialog = false },
+            onConfirm = { name, description ->
+                showSaveDialog = false
+                vm.finishAndResetSession(name, description)
+            }
+        )
+    }
+
     MainScreen(
-        vm = mainVm,
+        vm = vm,
         onStartLocationService = onStartLocationService,
-        onStopLocationService = { showSaveDialog = true },
+        onReset = { showSaveDialog = true },
         onOpenHistory = { navController.navigate("old_sessions") }
     )
-
 }
+
+private fun shareGpx(context: Context, gpxContent: String) {
+    try {
+        val file = File(context.cacheDir, "session.gpx")
+        file.writeText(gpxContent)
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/gpx+xml"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share GPX"))
+    } catch (e: Exception) {
+        Log.e("ShareGpx", "Failed to share GPX file", e)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SessionDetailScreen(
+    sessionVm: SessionDetailViewModel = hiltViewModel(),
+    navController: NavController
+) {
+    var isCompassVisible by remember { mutableStateOf(true) }
+
+    val pointPaces by sessionVm.pointPaces.collectAsState()
+    val settings by sessionVm.settings.collectAsState()
+    val context = LocalContext.current
+    val checkpoints by sessionVm.checkpointsLatLng.collectAsState()
+    val waypoints by sessionVm.waypointsLatLng.collectAsState()
+    val points by sessionVm.trackLatLng.collectAsState()
+    val cameraPositionState = rememberCameraPositionState()
+    val session by sessionVm.sessionDetails.collectAsState()
+    val pace by sessionVm.pace.collectAsState()
+    val distance by sessionVm.distance.collectAsState()
+    val duration by sessionVm.duration.collectAsState()
+    var showOptions by remember { mutableStateOf(false) }
+    val azimuth = sessionVm.azimuth.collectAsState().value
+    if (showOptions) {
+        SessionOptionsSheet(onDismiss = { showOptions = false }) {
+            Column(
+                Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Track Coloring", style = MaterialTheme.typography.titleMedium)
+                SpeedColorSettings(
+                    settings = settings,
+                    onChange = { newSettings ->
+                        sessionVm.updateSettings(newSettings)
+                    },
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = DividerDefaults.color
+                )
+            }
+        }
+    }
+    LaunchedEffect(Unit) { sessionVm.exportEvents.collect { gpx -> shareGpx(context, gpx) } }
+    LaunchedEffect(points.size) {
+        if (points.size > 1) {
+            val bounds = LatLngBounds.builder().apply { points.forEach { include(it) } }.build()
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, 100), 1000)
+        }
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(session?.name ?: "Session Details") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }, actions = {
+                    IconButton(onClick = { showOptions = true }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_options),
+                            contentDescription = "Options"
+                        )
+                    }
+                    IconButton(
+                        enabled = points.isNotEmpty(),
+                        onClick = { sessionVm.onExportGpxClicked() }
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_share),
+                            contentDescription = "Share as GPX"
+                        )
+                    }
+                    if (isCompassVisible) {
+                        CompassView(
+                            azimuth = azimuth,
+                            modifier = Modifier
+                                .clickable { isCompassVisible = false },
+                        )
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+        ) {
+            Box(Modifier.weight(1f)) {
+                LiveMapWithCompass(
+                    points = points,
+                    checkpoints = checkpoints,
+                    waypoints = waypoints,
+                    azimuth = azimuth,
+                    sessionState = SessionState.IDLE,
+                    currentLatLng = points.lastOrNull() ?: return@Column,
+                    cameraPositionState = cameraPositionState,
+                    settings = settings,
+                    segmentPaces = pointPaces
+                )
+            }
+            session?.let { details ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    StatItem(
+                        label = "Duration",
+                        value = Utils.formatTime(duration)
+                    )
+
+                    StatItem(
+                        label = "Distance",
+                        value = "${distance.toInt()} m"
+                    )
+
+                    StatItem(
+                        label = "Avg. Pace",
+                        value = Utils.formatPace(pace)
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun SaveSessionDialog(
     onDismiss: () -> Unit,
@@ -233,7 +419,7 @@ fun SaveSessionDialog(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (Optional)") }
+                    label = { Text("Description") }
                 )
             }
         },
@@ -252,58 +438,135 @@ fun SaveSessionDialog(
         }
     )
 }
-@Composable
-fun OldSessionsScreen(mainVm: MainViewModel) {
-    val savedSessions by mainVm.savedSessions.collectAsState()
 
-    LaunchedEffect(Unit) {
-        mainVm.loadOldSessions()
-    }
-    if (savedSessions.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No saved sessions found.")
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OldSessionsScreen(repo: SessionRepository, navController: NavController) {
+    val scope = rememberCoroutineScope()
+    val savedSessions by repo.getAllSessions().collectAsState(initial = emptyList())
+    var renameSession by remember { mutableStateOf<GpsSessionsEntity?>(null) }
+    var newName by remember { mutableStateOf("") }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Back to record") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
         }
-    } else {
-        LazyColumn {
+    ) { padding ->
+
+        if (savedSessions.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No saved sessions found.")
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding) // This ensures the list starts below the TopAppBar
+            ) {
                 items(savedSessions) { session ->
                     SessionListItem(
                         session = session,
+                        onItemClick = {
+                            navController.navigate("session_detail/${session.id}")
+                        },
                         onDeleteClick = {
-                            session.id.let { idString ->
-                                mainVm.deleteSession(UUID.fromString(session.name))
+                            scope.launch {
+                                repo.deleteSession(session.id)
                             }
                         },
-                        onItemClick = {
-                            // Handle navigation to session details if needed
+                        onRenameClick = {
+                            renameSession = session
                         }
                     )
                 }
             }
         }
-    }
+        renameSession?.let { session ->
+            // Initialize newName when dialog opens
+            LaunchedEffect(session) {
+                newName = session.name
+            }
 
+            RenameSessionDialog(
+                currentName = newName,
+                onValueChange = { newName = it }, // ✅ now typing works
+                onDismiss = { renameSession = null },
+                onConfirm = { confirmedName ->
+                    scope.launch {
+                        repo.updateSessionName(session.id, confirmedName)
+                        renameSession = null
+                    }
+                }
+            )
+        }
+
+    }
+}
+
+@Composable
+fun RenameSessionDialog(
+    currentName: String,
+    onValueChange: (String) -> Unit, // NEW: pass updated text to parent
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Session") },
+        text = {
+            TextField(
+                value = currentName,
+                onValueChange = onValueChange, // ✅ use parent state
+                singleLine = true,
+                label = { Text("Session name") }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = currentName.isNotBlank(),
+                onClick = { onConfirm(currentName.trim()) }
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
 
 @Composable
 fun SessionListItem(
-    session: GpsSessionEntity,
+    session: GpsSessionsEntity,
     onDeleteClick: () -> Unit,
-    onItemClick: () -> Unit
+    onItemClick: () -> Unit,
+    onRenameClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .clickable { onItemClick() }
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(session.name)
-        }
-        IconButton(onClick = onDeleteClick) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Delete Session"
-            )
+        Text(session.name, style = MaterialTheme.typography.bodyLarge)
+        Row {
+            IconButton(onClick = onRenameClick) {
+                Icon(Icons.Default.Edit, contentDescription = "Rename")
+            }
+            IconButton(onClick = onDeleteClick) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete")
+            }
         }
     }
 }
@@ -313,344 +576,467 @@ fun SessionListItem(
 @Composable
 fun LiveMapWithCompass(
     points: List<LatLng>,
-    waypoint: LatLng?,
+    segmentPaces: List<Double>,
     checkpoints: List<LatLng>,
-    latitude: Double,
-    longitude: Double,
-    azimuth: Float
+    waypoints: List<LatLng>,
+    currentLatLng: LatLng,
+    settings: Utils.SessionColorSettings,
+    azimuth: Float,
+    sessionState: SessionState,
+    cameraPositionState: CameraPositionState,
 ) {
+
+    val mapUiSettings by remember {
+        mutableStateOf(
+            MapUiSettings(
+                compassEnabled = false,
+                zoomControlsEnabled = false
+            )
+        )
+    }
     val isLandscape = isLandscape()
     var orientationMode by remember { mutableStateOf(MapOrientationMode.COMPASS) }
-    val latLngs = points
-    val currentLatLng = LatLng(latitude, longitude)
-    Box(Modifier.fillMaxSize()) {
-        val cameraPositionState = rememberCameraPositionState()
-
-        LaunchedEffect(currentLatLng) {
-            cameraPositionState.move(
-                CameraUpdateFactory.newLatLngZoom(currentLatLng, 17f)
-            )
-        }
-
-        LaunchedEffect(cameraPositionState.isMoving) {
-            if (cameraPositionState.isMoving && orientationMode != MapOrientationMode.USER_CHOOSE) {
-                if(orientationMode == MapOrientationMode.CENTER || orientationMode == MapOrientationMode.COMPASS) {
-                    orientationMode = MapOrientationMode.USER_CHOOSE
-                }
-            }
-        }
-        LaunchedEffect(currentLatLng, orientationMode, azimuth) {
-            if (orientationMode == MapOrientationMode.CENTER) {
-                cameraPositionState.animate(
-                    update = CameraUpdateFactory.newLatLng(currentLatLng),
-                    durationMs = 500
+    LaunchedEffect(currentLatLng, sessionState, orientationMode, azimuth) {
+        if (sessionState == SessionState.RUNNING) {
+            val cameraUpdate = when (orientationMode) {
+                MapOrientationMode.COMPASS -> CameraUpdateFactory.newCameraPosition(
+                    CameraPosition(currentLatLng, 15f, 0f, azimuth)
                 )
-            }
-            val bearingTarget = when (orientationMode) {
-                MapOrientationMode.COMPASS -> -azimuth
-                MapOrientationMode.NORTH -> 0f
+
+                MapOrientationMode.CENTER -> CameraUpdateFactory.newCameraPosition(
+                    CameraPosition(currentLatLng, 15f, 0f, 0f)
+                )
+
                 else -> null
             }
+            cameraUpdate?.let { cameraPositionState.animate(it, 500) }
+        }
+    }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // This LaunchedEffect will run when points change or the layout size changes.
+        LaunchedEffect(points, constraints) {
+            if (points.size > 1) {
+                val boundsBuilder = LatLngBounds.builder()
+                points.forEach { boundsBuilder.include(it) }
+                val bounds = boundsBuilder.build()
 
-            if (bearingTarget != null && cameraPositionState.position.bearing != bearingTarget) {
+                // Use the constraints to calculate dynamic padding.
+                val padding = (minOf(constraints.maxWidth, constraints.maxHeight) * 0.2).toInt()
+
+                // Animate the camera to show the entire track with the calculated padding.
                 cameraPositionState.animate(
-                    CameraUpdateFactory.newCameraPosition(
-                        CameraPosition.builder(cameraPositionState.position)
-                            .bearing(bearingTarget)
-                            .build()
-                    ),
-                    durationMs = 200
+                    CameraUpdateFactory.newLatLngBounds(bounds, padding),
+                    1000 // Animation duration in ms
                 )
             }
         }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            GoogleMap(
-                cameraPositionState = cameraPositionState,
-                modifier = Modifier.fillMaxSize(),
-
-            ) {
-                if (latLngs.isNotEmpty()) {
-                    Polyline(points = latLngs, width = 8f)
-                    Marker(state = MarkerState(latLngs.first()), title = "Start")
-                }
-                if (latitude != 0.0 && longitude != 0.0) {
-                    Marker(
-                        state = MarkerState(currentLatLng),
-                        title = "You",
-                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
-                    )
-                }
-                waypoint?.let  { wp ->
-                    Marker(
-                        state = MarkerState(wp),
-                        title = "WP",
-                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)
-                    )
-                }
-                checkpoints.forEachIndexed { i, cp ->
-                    Marker(
-                        state = MarkerState(cp), // Use cp, not LatLng(latitude, longitude)
-                        title = "CP ${i + 1}",
-                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)
-                    )
-                }
+        GoogleMap(
+            cameraPositionState = cameraPositionState,
+            modifier = Modifier.fillMaxSize(),
+            uiSettings = mapUiSettings
+        ) {
+            val segmentCount = minOf(
+                points.size - 1,
+                segmentPaces.size
+            )
+            repeat(segmentCount) { index ->
+                Polyline(
+                    points = listOf(points[index], points[index + 1]),
+                    color = Utils.paceToColor(
+                        segmentPaces[index],
+                        settings.paceMin,
+                        settings.paceMax
+                    ),
+                    width = 12f
+                )
             }
-            MapOrientationControls(
-                modifier = Modifier
-                    .align(
-                        if (isLandscape) Alignment.CenterEnd else Alignment.TopEnd
-                    )
-                    .padding(16.dp),
-                initialMode = orientationMode,
-                onModeChange = { newMode ->
-                    orientationMode = newMode
-                }
+            checkpoints.forEachIndexed { index, checkpoint ->
+                Marker(
+                    state = MarkerState(position = checkpoint),
+                    title = "${index + 1}",
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET)
+                )
+            }
+            waypoints.lastOrNull()?.let { wp ->
+                Marker(
+                    state = MarkerState(position = wp),
+                    title = "Last Waypoint",
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+                )
+            }
+            Marker(
+                state = MarkerState(position = currentLatLng),
+                title = "Current Location",
+                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
             )
         }
+
+        MapOrientationControls(
+            modifier = Modifier
+                .align(
+                    if (isLandscape) Alignment.BottomEnd else Alignment.TopEnd
+                )
+                .padding(16.dp),
+            initialMode = orientationMode,
+            onModeChange = { newMode ->
+                orientationMode = newMode
+            },
+            azimuth = azimuth
+        )
     }
 }
+
 @Composable
 fun isLandscape(): Boolean {
-    val config = LocalConfiguration.current
-    return config.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val context = LocalContext.current
+    return context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 }
+
+
 @Composable
 private fun StatItem(label: String, value: String) {
     Column {
-        Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Text(text = value, style = MaterialTheme.typography.bodyLarge)
     }
 }
+
 @Composable
 fun MainScreen(
     vm: MainViewModel,
     onStartLocationService: () -> Unit,
-    onStopLocationService: () -> Unit,
     onReset: () -> Unit = {},
     onOpenHistory: () -> Unit
-)
-{
+) {
     val isLandscape = isLandscape()
     val azimuth by vm.azimuth.collectAsState()
-    val location by vm.currentLocation.collectAsState()
-
-    val latitude = location?.latitude
-    val longitude = location?.longitude
-
-    val isTracking by vm.isTracking.collectAsState()
-
+    val cameraPositionState = rememberCameraPositionState()
+    val sessionState by vm.sessionState.collectAsState()
+    val points by vm.trackLatLng.collectAsState()
+    val segmentPaces by vm.segmentPaces.collectAsState()
+    val scope = rememberCoroutineScope()
+    val currentLocationValue by vm.currentLocation.collectAsState()
+    val trackPoints by vm.trackLatLng.collectAsState()
+    var showSaveDialog by rememberSaveable { mutableStateOf(false) }
+    if (showSaveDialog) {
+        SaveSessionDialog(
+            onDismiss = { showSaveDialog = false },
+            onConfirm = { name, description ->
+                vm.finishAndResetSession(name, description)
+            })
+    }
+    val settings by vm.settings.collectAsState()
+    val waypoints by vm.waypointsLatLng.collectAsState()
+    val wpPathDist by vm.wpPathDist.collectAsState()
+    val checkpoints by vm.checkpointsLatLng.collectAsState()
     val elapsedSec by vm.elapsedSec.collectAsState()
     val totalDist by vm.totalDistanceMeters.collectAsState()
     val cpDist by vm.distanceFromCheckpoint.collectAsState()
+    val cpDirectDist by vm.distanceFromCheckpointDirect.collectAsState()
     val wpDist by vm.distanceFromWaypoint.collectAsState()
-    val pace by vm.currentPaceMinPerKm.collectAsState()
+    val pace by vm.paceFromStart.collectAsState()
+    val cpPace by vm.paceFromCheckpoint.collectAsState()
+    val wpPace by vm.paceFromWaypoint.collectAsState()
+    val preview by vm.previewLocation.collectAsState()
+    val currentLatLng =
+        currentLocationValue?.let { LatLng(it.latitude, it.longitude) }
+            ?: preview?.let { LatLng(it.latitude, it.longitude) }
+            ?: trackPoints.lastOrNull()
+            ?: LatLng(59.437, 24.753)
 
-    val safeLatLng = remember(latitude, longitude) {
-        if (
-            latitude != null &&
-            longitude != null &&
-            latitude in -90.0..90.0 &&
-            longitude in -180.0..180.0
-        ) {
-            LatLng(latitude, longitude)
-        } else null
+    var showOptions by remember { mutableStateOf(false) }
+
+
+    if (showOptions) {
+        SessionOptionsSheet(onDismiss = { showOptions = false }) {
+            Column(
+                Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Track Coloring", style = MaterialTheme.typography.titleMedium)
+                SpeedColorSettings(
+                    settings = settings,
+                    onChange = { newSettings ->
+                        vm.updateSettings(newSettings)
+                    },
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = DividerDefaults.color
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Sync interval (seconds)")
+                    Text(
+                        text = vm.tracker.syncIntervalSec.collectAsState().value.toString(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Slider(
+                    value = vm.tracker.syncIntervalSec.collectAsState().value.toFloat(),
+                    valueRange = 5f..60f,
+                    steps = 5,
+                    onValueChange = {
+                        vm.tracker.updateSyncInterval(it.toInt())
+                    }
+                )
+            }
+        }
     }
-
-
+    LaunchedEffect(currentLocationValue) {
+        if (sessionState == SessionState.IDLE) {
+            currentLocationValue?.let {
+                cameraPositionState.move(
+                    CameraUpdateFactory.newLatLngZoom(
+                        LatLng(it.latitude, it.longitude),
+                        15f
+                    )
+                )
+            }
+        }
+    }
     if (isLandscape) {
         Row(Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(140.dp) // Narrower column for just buttons
-                    .padding(vertical = 16.dp, horizontal = 8.dp),
-                verticalArrangement = Arrangement.SpaceAround, // Evenly space the buttons
+                    .weight(0.1f)
+                    .padding(vertical = 2.dp, horizontal = 2.dp),
+                verticalArrangement = Arrangement.SpaceEvenly,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Button(
                     onClick = {
-                        if (!isTracking) {
-                            vm.startSession(
-                                name = "Session",
-                                description = null,
-                                sessionTypeId = "DEFAULT"
-                            )
-                            onStartLocationService()
-                        } else {
-                            vm.stopSession()
-                            onStopLocationService()
+                        when (sessionState) {
+                            SessionState.IDLE -> {
+                                scope.launch {
+                                    vm.startDefaultSession()
+                                    onStartLocationService()
+                                }
+                            }
+
+                            SessionState.RUNNING -> vm.pauseSession()
+                            SessionState.PAUSED -> vm.resumeSession()
                         }
-                    }
+                    },
                 ) {
-                    Text(if (isTracking) "STOP" else "START")
+                    when (sessionState) {
+                        SessionState.IDLE -> Icon(
+                            painterResource(id = R.drawable.ic_start),
+                            contentDescription = "Start"
+                        )
+
+                        SessionState.RUNNING -> Icon(
+                            painterResource(id = R.drawable.ic_end),
+                            contentDescription = "Pause"
+                        )
+
+                        SessionState.PAUSED -> Icon(
+                            painterResource(id = R.drawable.ic_start),
+                            contentDescription = "Resume"
+                        )
+                    }
                 }
-                Button(onClick = { vm.addCheckpointUi() }, modifier = Modifier.fillMaxWidth()) {
-                    Text("CP +")
+                Button(
+                    onClick = { vm.addCheckpoint() },
+                    enabled = sessionState == SessionState.RUNNING
+                ) {
+                    Icon(
+                        painterResource(id = R.drawable.ic_checkpoint),
+                        contentDescription = "Add Checkpoint"
+                    )
                 }
-                Button(onClick = { vm.addWaypointUi()
-                }, modifier = Modifier.fillMaxWidth()) {
-                    Text("WP +")
+                Button(
+                    onClick = { vm.addWaypoint() },
+                    enabled = sessionState == SessionState.RUNNING
+                ) {
+                    Icon(
+                        painterResource(id = R.drawable.ic_waypoint),
+                        contentDescription = "Add Waypoint"
+                    )
                 }
+            }
+
+            Box(Modifier.weight(0.7f)) {
+                LiveMapWithCompass(
+                    points = points,
+                    waypoints = waypoints,
+                    checkpoints = checkpoints,
+                    currentLatLng = currentLatLng,
+                    azimuth = azimuth,
+                    sessionState = sessionState,
+                    cameraPositionState = cameraPositionState,
+                    settings = settings,
+                    segmentPaces = segmentPaces,
+                )
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopStart) // Aligned to top-left
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp) // Adds space between buttons
+                ) {
+                    // Using TextButton as in your original portrait layout
+                    TextButton(
+                        onClick = onReset, // Corrected onClick
+                        enabled = sessionState != SessionState.IDLE
+                    ) {
+                        Text("Reset")
+                    }
+                    IconButton(onClick = onOpenHistory) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_route_history),
+                            contentDescription = "Open History"
+                        )
+                    }
+                    IconButton(onClick = { showOptions = true }) { // Corrected onClick
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_options),
+                            contentDescription = "Options"
+                        )
+                    }
+                }
+                // --- END OF CORRECTION ---
+
             }
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(220.dp) // Wider column for text
-                    .padding(vertical = 16.dp, horizontal = 8.dp),
-                verticalArrangement = Arrangement.SpaceAround,
-                horizontalAlignment = Alignment.Start
+                    .weight(0.2f)
+                    .padding(vertical = 8.dp, horizontal = 8.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.SpaceEvenly,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Session Stats
                 StatItem(label = "Duration", value = Utils.formatTime(elapsedSec))
                 StatItem(label = "Distance", value = "${totalDist.toInt()} m")
                 StatItem(label = "Avg. Pace", value = Utils.formatPace(pace))
-
-                // Checkpoint Stats
-                StatItem(label = "CP Direct", value = "${cpDist.toInt()} m")
-                StatItem(label = "CP Pace", value = Utils.formatPace(vm.paceFromCheckpoint.collectAsState().value))
-
-                // Waypoint Stats
-                StatItem(label = "WP Travelled", value = "${wpDist.toInt()} m")
-                StatItem(label = "WP Pace", value = Utils.formatPace(vm.paceFromWaypoint.collectAsState().value))
-            }
-
-            // 🗺️ 2. CENTER MAP (takes up the remaining space between the side panels)
-            Box(Modifier.weight(1f)) {
-                if (safeLatLng != null) {
-                    LiveMapWithCompass(
-                        points = vm.trackPoints.collectAsState().value.map {
-                            LatLng(it.latitude, it.longitude)
-                        },
-                        waypoint = vm.waypoint.collectAsState().value?.let {
-                            LatLng(it.latitude, it.longitude)
-                        },
-                        checkpoints = vm.checkpoints.collectAsState().value.map {
-                            LatLng(it.latitude, it.longitude)
-                        },
-                        latitude = safeLatLng.latitude,
-                        longitude = safeLatLng.longitude,
-                        azimuth = azimuth
-                    )
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                ) {
-                    TextButton(onClick = onReset) { Text("Reset") }
-                    TextButton(onClick = onOpenHistory) { Text("Options") }
-                }
+                Spacer(Modifier.height(8.dp))
+                StatItem(label = "From CP", value = "${cpDist.toInt()} m")
+                StatItem(label = "Direct", value = "${cpDirectDist.toInt()} m")
+                StatItem(label = "CP Pace", value = Utils.formatPace(cpPace))
+                Spacer(Modifier.height(8.dp))
+                StatItem(label = "From WP", value = "${wpDist.toInt()} m")
+                // Note: You have a small copy-paste error here, using cpDirectDist for the WP direct distance
+                StatItem(label = "Direct", value = "${cpDirectDist.toInt()} m")
+                StatItem(label = "WP Pace", value = Utils.formatPace(wpPace))
             }
         }
-
     } else {
         Column(Modifier.fillMaxSize()) {
-
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onReset) { Text("Reset") }
-                TextButton(onClick = onOpenHistory) { Text("Options") }
+                IconButton(onClick = onOpenHistory) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_route_history),
+                        contentDescription = "Open History"
+                    )
+                }
+                IconButton(onClick = { showOptions = true }) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_options),
+                        contentDescription = "Options"
+                    )
+                }
             }
-
             Box(Modifier.weight(1f)) {
-Log.d("MainScreen", "Latitude: $latitude, points: $latitude, Longitude: $longitude, Azimuth: $azimuth")
-                    if (latitude != null && longitude != null) {
-
-
-                        LiveMapWithCompass(
-                            points = vm.trackPoints.collectAsState().value.map {
-                                LatLng(it.latitude, it.longitude)
-                            },
-                            waypoint = vm.waypoint.collectAsState().value?.let {
-                                LatLng(it.latitude, it.longitude)
-                            },
-                            checkpoints = vm.checkpoints.collectAsState().value.map {
-                                LatLng(it.latitude, it.longitude)
-                            },
-                            latitude = latitude,
-                            longitude = longitude,
-                            azimuth = azimuth
-                        )
-
-                    } else {
-                        Box(
-                            Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-
-
+                LiveMapWithCompass(
+                    points = points,
+                    waypoints = waypoints,
+                    checkpoints = checkpoints,
+                    currentLatLng = currentLatLng,
+                    azimuth = azimuth,
+                    sessionState = sessionState,
+                    cameraPositionState = cameraPositionState,
+                    settings = settings,
+                    segmentPaces = segmentPaces,
+                )
             }
-
-
-            Column(
-                Modifier
+            Row(
+                modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Button(
-                        onClick = {
-                            if (!isTracking) {
-                                vm.startSession(
-                                    name = "Session",
-                                    description = null,
-                                    sessionTypeId = "DEFAULT"
-                                )
-                                onStartLocationService()
-                            } else {
-                                vm.stopSession()
-                                onStopLocationService()
+                    Button(onClick = {
+                        when (sessionState) {
+                            SessionState.IDLE -> {
+                                scope.launch {
+                                    vm.startDefaultSession()
+                                    onStartLocationService()
+                                }
+                            }
+
+                            SessionState.RUNNING -> {
+                                vm.pauseSession()
+                            }
+
+                            SessionState.PAUSED -> {
+                                vm.resumeSession()
                             }
                         }
-                    ) {
-                        Text(if (isTracking) "STOP" else "START")
+                    }) {
+                        Text(
+                            when (sessionState) {
+                                SessionState.IDLE -> "START"
+                                SessionState.RUNNING -> "PAUSE"
+                                SessionState.PAUSED -> "RESUME"
+                            }
+                        )
                     }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("${totalDist.toInt()} m")
-                        Button(onClick = { vm.addCheckpointUi() }) { Text("CP +") }
-                    }
+                    Text(Utils.formatTime(elapsedSec))
+                    Text("${totalDist.toInt()} m")
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("${wpDist} m")
-                        Button(onClick = { vm.addWaypointUi() }) { Text("WP +") }
-                    }
+                    Text("Pace: ${Utils.formatPace(pace)}")
                 }
-
-                Spacer(Modifier.height(8.dp))
-
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(Utils.formatTime(elapsedSec))
-                        Text("Pace: ${Utils.formatPace(pace)}")
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Button(
+                        onClick = { vm.addCheckpoint() },
+                        enabled = sessionState == SessionState.RUNNING
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_checkpoint),
+                            contentDescription = "Add Checkpoint"
+                        )
                     }
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("$cpDist m")
-                        Text("Pace: ${Utils.formatPace(vm.paceFromCheckpoint.collectAsState().value)}")
+                    Text("${cpDist.toInt()} m")
+                    Text("${cpDirectDist.toInt()} m")
+                    Text("Pace: ${Utils.formatPace(cpPace)}")
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Button(
+                        onClick = { vm.addWaypoint() },
+                        enabled = sessionState == SessionState.RUNNING
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_waypoint),
+                            contentDescription = "Add Waypoint"
+                        )
                     }
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Pace: ${Utils.formatPace(vm.paceFromWaypoint.collectAsState().value)}")
-                    }
+                    Text("${wpDist.toInt()} m")
+                    Text("${wpPathDist.toInt()} m")
+                    Text("Pace: ${Utils.formatPace(wpPace)}")
                 }
             }
         }
@@ -658,12 +1044,11 @@ Log.d("MainScreen", "Latitude: $latitude, points: $latitude, Longitude: $longitu
 }
 
 
-
-        @Composable
+@Composable
 fun PermissionController(
     onPermissionsGranted: @Composable () -> Unit
 ) {
-    val context = LocalContext.current // Get the context here
+    val context = LocalContext.current
 
     var permissionsState by remember {
         mutableStateOf(
@@ -693,6 +1078,7 @@ fun PermissionController(
         permissionsState["foreground"] == true && permissionsState["background"] == true -> {
             onPermissionsGranted()
         }
+
         permissionsState["foreground"] == true -> {
             Column(
                 modifier = Modifier
@@ -701,15 +1087,23 @@ fun PermissionController(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Allow Location Access All the Time", fontSize = 20.sp, textAlign = TextAlign.Center)
+                Text(
+                    "Allow Location Access All the Time",
+                    fontSize = 20.sp,
+                    textAlign = TextAlign.Center
+                )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("This app tracks your activity even when closed. Please select 'Allow all the time' to enable this.", textAlign = TextAlign.Center)
+                Text(
+                    "This app tracks your activity even when closed. Please select 'Allow all the time' to enable this.",
+                    textAlign = TextAlign.Center
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = { backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION) }) {
                     Text("Continue")
                 }
             }
         }
+
         else -> {
             Column(
                 modifier = Modifier
@@ -720,11 +1114,17 @@ fun PermissionController(
             ) {
                 Text("Permissions Required", fontSize = 20.sp, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("This app needs Location and Notification permissions to function.", textAlign = TextAlign.Center)
+                Text(
+                    "This app needs Location and Notification permissions to function.",
+                    textAlign = TextAlign.Center
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = {
                     val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.POST_NOTIFICATIONS)
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        )
                     } else {
                         arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
                     }
@@ -737,3 +1137,65 @@ fun PermissionController(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SessionOptionsSheet(
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val modalBottomSheetState = rememberModalBottomSheetState()
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = modalBottomSheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        content()
+    }
+
+}// In MainActivity.kt
+
+@Composable
+fun SpeedColorSettings(
+    settings: Utils.SessionColorSettings,
+    onChange: (Utils.SessionColorSettings) -> Unit,
+) {
+    // --- START: Dynamic Value Range Calculation ---
+    // Define your desired default range for the slider.
+    val defaultMin = 3f
+    val defaultMax = 15f
+    val sanitizedPaceMax = settings.paceMax.toFloat().coerceAtMost(settings.paceMin.toFloat())
+    val sanitizedPaceMin = settings.paceMin.toFloat().coerceAtLeast(settings.paceMax.toFloat())
+    val sliderRange =
+        minOf(defaultMin, settings.paceMax.toFloat())..maxOf(defaultMax, settings.paceMin.toFloat())
+
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Pace Range (min/km)")
+            Text(
+                text = "${Utils.formatPace(settings.paceMax)} - ${Utils.formatPace(settings.paceMin)}",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        RangeSlider(
+            value = sanitizedPaceMax..sanitizedPaceMin,
+            onValueChange = { newRange ->
+                val newPaceMax = newRange.start.coerceAtMost(newRange.endInclusive)
+                val newPaceMin = newRange.endInclusive.coerceAtLeast(newRange.start)
+
+                onChange(
+                    settings.copy(
+                        paceMax = newPaceMax.toDouble(),
+                        paceMin = newPaceMin.toDouble()
+                    )
+                )
+            },
+            valueRange = sliderRange
+        )
+    }
+}

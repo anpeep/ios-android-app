@@ -1,189 +1,208 @@
-
 package com.example.gpssportmap.ui.main
 
 import android.location.Location
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gpssportmap.data.TokenStore
-import com.example.gpssportmap.data.db.GpsLocationEntity
-import com.example.gpssportmap.data.db.GpsSessionCreateDto
-import com.example.gpssportmap.data.db.GpsSessionEntity
-import com.example.gpssportmap.data.db.GpsSessionTypeEntity
 import com.example.gpssportmap.data.repository.SessionRepository
-import com.example.gpssportmap.domain.model.SessionTracker
-import com.example.gpssportmap.utils.CompassSensor
+import com.example.gpssportmap.data.repository.SettingsRepository
+import com.example.gpssportmap.domain.SessionState
+import com.example.gpssportmap.domain.SessionTracker
+import com.example.gpssportmap.ui.compass.CompassSensor
+import com.example.gpssportmap.utils.Utils
+import com.example.gpssportmap.utils.Utils.toGpsSettings
+import com.example.gpssportmap.utils.Utils.toSessionColorSettings
+import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
-import java.time.Instant
-import java.util.UUID
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val tracker: SessionTracker,
-    private val sessionRepository: SessionRepository,
-    private val compassSensor: CompassSensor,
+    val tracker: SessionTracker,
+    val savedStateHandle: SavedStateHandle,
+    val sessionRepository: SessionRepository,
+    private val settingsRepository: SettingsRepository,
+    private val compassSensor: CompassSensor
 ) : ViewModel() {
+    val checkpointsLatLng: StateFlow<List<LatLng>> = tracker.checkpointsLatLng
+    val waypointsLatLng: StateFlow<List<LatLng>> = tracker.waypointsLatLng
+    val sessionState: StateFlow<SessionState> = tracker.sessionState
+    val elapsedSec: StateFlow<Double> = tracker.elapsedSec
+    private val sessionIdFlow: StateFlow<String?> = savedStateHandle.getStateFlow("sessionId", null)
+    val wpPathDist: StateFlow<Double> = tracker.distanceAlongPathFromWaypoint
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0.0
+        )
+    private val _initialCameraLatLng = MutableStateFlow<LatLng?>(null)
+    private val _followUser = MutableStateFlow(false)
+    private val _trackPoints = MutableStateFlow<List<Utils.TrackPoint>>(emptyList())
+    val trackPoints: StateFlow<List<Utils.TrackPoint>> = _trackPoints
 
     init {
-        compassSensor.start()
+        viewModelScope.launch {
+            val lastLatLng = withContext(Dispatchers.IO) {
+                sessionRepository.getLastKnownLatLng()
+            }
+            _initialCameraLatLng.value = lastLatLng
+
+        }
+
+        viewModelScope.launch {
+            tracker.trackPoints.collect { points ->
+                _trackPoints.value = points
+            }
+        }
     }
-    fun startCompass() = compassSensor.start()
-    val isTracking: StateFlow<Boolean> = tracker.isTracking
-    val trackPoints: StateFlow<List<Location>> = tracker.trackPoints
-    val elapsedSec: StateFlow<Long> = tracker.elapsed
-    val azimuth: StateFlow<Float> = compassSensor.azimuth
-    val waypoint: StateFlow<Location?> = tracker.waypoint
-    val checkpoints: StateFlow<List<GpsLocationEntity>> = tracker.checkpoints
-
-    val totalDistanceMeters: StateFlow<Double> = tracker.distance
-    val elapsed = tracker.elapsed
-    val pace = tracker.pace
 
 
-    val currentLocation: StateFlow<Location?> =
-        trackPoints
-            .map { it.lastOrNull() }
+    fun startCompass() {
+        viewModelScope.launch {
+            withContext(Dispatchers.Default) {
+                compassSensor.start()
+            }
+        }
+    }
+
+    fun stopCompass() {
+        compassSensor.stop()
+    }
+
+
+    val settings: StateFlow<Utils.SessionColorSettings> =
+        settingsRepository.settingsFlow
+            .map { it.toSessionColorSettings() } // Use the extension function
             .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5_000),
-                null
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = Utils.SessionColorSettings() // Provide a default initial value
             )
+    val totalDistanceMeters: StateFlow<Double> = tracker.totalDistanceMeters
+    val distanceFromWaypoint: StateFlow<Double> = tracker.distanceFromWaypoint
+    val distanceFromCheckpoint: StateFlow<Double> = tracker.distanceFromCheck
+    val distanceFromCheckpointDirect: StateFlow<Double> = tracker.distanceAlongPathFromCheckpoint
+    val currentLocation: StateFlow<Location?> = tracker.currentLocation
+    val previewLocation = tracker.previewLocation
+    val segmentPaces: StateFlow<List<Double>> =
+        trackPoints
+            .map { Utils.computeSegmentPaces(it) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val azimuth: StateFlow<Float> = compassSensor.azimuth
+    val trackLatLng: StateFlow<List<LatLng>> =
+        trackPoints.map { list -> list.map { it.latLng } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
 
-
-
-    val distanceFromCheckpoint: StateFlow<Double> =
-        combine(checkpoints, currentLocation) { cps, cur ->
-            val cp = cps.lastOrNull() ?: return@combine 0.0
-            val loc = cur ?: return@combine 0.0
-
-            val cpLoc = Location("").apply {
-                latitude = cp.latitude
-                longitude = cp.longitude
-            }
-            cpLoc.distanceTo(loc).toDouble()
-        }.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            0.0
-        )
-
-    val distanceFromWaypoint: StateFlow<Double> =
-        combine(waypoint, currentLocation) { wp, cur ->
-            if (wp == null || cur == null) 0.0
-            else wp.distanceTo(cur).toDouble()
-        }.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            0.0
-        )
-
-
-    val currentPaceMinPerKm: StateFlow<Double> =
-        combine(totalDistanceMeters, elapsedSec) { dist, time ->
-            val km = (dist / 1000.0).coerceAtLeast(0.001)
-            val mins = time / 60.0
+    val paceFromWaypoint: StateFlow<Double> = combine(
+        tracker.distanceFromWaypoint,
+        tracker.elapsedSec,
+        tracker.lastWaypointTimeSec
+    ) { dist, now, start ->
+        val km = (dist / 1000).coerceAtLeast(0.001)
+        val mins = (now - start) / 60.0
+        mins / km
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
+    val paceFromStart: StateFlow<Double> =
+        combine(tracker.totalDistanceMeters, tracker.elapsedSec) { dist, elapsedSeconds ->
+            val km = (dist / 1000).coerceAtLeast(0.001)
+            val mins = elapsedSeconds / 60.0
             mins / km
-        }.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            0.0
-        )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
+    val paceFromCheckpoint: StateFlow<Double> = combine(
+        tracker.distanceFromCheck,
+        tracker.elapsedSec,
+        tracker.lastCheckpointTimeSec
+    ) { dist, now, start ->
+        val km = (dist / 1000).coerceAtLeast(0.001)
+        val mins = (now - start) / 60.0
+        mins / km
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
 
-    val paceFromWaypoint: StateFlow<Double> =
-        combine(distanceFromWaypoint, elapsedSec) { dist, time ->
-            val km = (dist / 1000.0).coerceAtLeast(0.001)
-            val mins = time / 60.0
-            mins / km
-        }.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            0.0
-        )
-
-    val paceFromCheckpoint: StateFlow<Double> =
-        combine(checkpoints, elapsedSec, distanceFromCheckpoint) { cps, time, dist ->
-            val last = cps.lastOrNull() ?: return@combine 0.0
-            val lastTime = Instant.parse(last.recordedAt).epochSecond
-            val mins = ((time - lastTime).coerceAtLeast(0)) / 60.0
-            val km = (dist / 1000.0).coerceAtLeast(0.001)
-            mins / km
-        }.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            0.0
-        )
-
-    fun startSession(name: String, description: String?, sessionTypeId: String) {
+    fun updateSettings(newSettings: Utils.SessionColorSettings) {
         viewModelScope.launch {
-            val dto = GpsSessionCreateDto(
-                name = name,
-                description = description,
-                gpsSessionTypeId = sessionTypeId,
-                recordedAt = Instant.now().toString(),
-                paceMin = null,
-                paceMax = null
-            )
+            settingsRepository.updateSettings(newSettings.toGpsSettings())
+        }
+    }
 
-            val result = tracker.startSession(dto)
+    fun addWaypoint() {
+        viewModelScope.launch {
+            val currentLocation = tracker.currentLocation.value ?: return@launch
+            tracker.addWaypoint(currentLocation)
+        }
+    }
 
-            result.onFailure { e ->
-                if (e is HttpException && e.code() == 401) {
-                    // Repository already cleared token
-                } else {
-                    Log.e("SESSION", "Failed to start session", e)
-                }
+    fun addCheckpoint() {
+        viewModelScope.launch {
+            val currentLocation = tracker.currentLocation.value ?: return@launch
+            tracker.addCheckpoint(currentLocation)
+        }
+    }
+
+
+    suspend fun startDefaultSession() {
+        sessionRepository.initializeIfNeeded()
+        startSession()
+    }
+
+    fun startSession() {
+        tracker.resetSession()
+        _followUser.value = true
+        viewModelScope.launch {
+            runCatching {
+                val newSessionId = tracker.startTrackingSession()
+                savedStateHandle["sessionId"] = newSessionId
+            }.onFailure {
+                Log.e("MainViewModel", "Failed to start session", it)
             }
         }
     }
 
 
-
-    fun stopSession() {
-        tracker.stopSession()
-    }
-
-    fun addWaypointUi() {
-        tracker.addWaypoint()
-    }
-
-    fun addCheckpointUi() {
+    fun finishAndResetSession(name: String, description: String) {
         viewModelScope.launch {
-            tracker.addCheckpoint()
+            val currentSessionId = sessionIdFlow.value
+            if (currentSessionId == null) {
+                Log.e("MainViewModel", "No active sessionId on finish")
+                return@launch
+            }
+
+            val duration = tracker.elapsedSec.value
+            val distance = tracker.totalDistanceMeters.value
+            val avgSpeed = if (duration > 0) distance / duration else 0.0
+
+            sessionRepository.finishSession(
+                sessionId = currentSessionId,
+                duration = duration,
+                distance = distance,
+                avgSpeed = avgSpeed
+            )
+
+            sessionRepository.updateSession(currentSessionId, name, description)
+            tracker.resetSession()
+            savedStateHandle["sessionId"] = null
         }
     }
 
-    fun updateSession(name: String, description: String?) {
-        viewModelScope.launch {
-            tracker.updateSession(name, description)
-        }
+    fun pauseSession() {
+        tracker.pauseSession()
     }
 
-    private val _savedSessions = MutableStateFlow<List<GpsSessionEntity>>(emptyList())
-    val savedSessions = _savedSessions.asStateFlow()
-
-    fun loadOldSessions() {
-        viewModelScope.launch {
-            sessionRepository.getAllSessions()
-                .collect { _savedSessions.value = it }
-        }
-    }
-
-    fun deleteSession(sessionId: UUID) {
-        viewModelScope.launch {
-            sessionRepository.deleteSession(sessionId.toString())
-            loadOldSessions()
-        }
+    fun resumeSession() {
+        tracker.resumeSession()
     }
 
     override fun onCleared() {

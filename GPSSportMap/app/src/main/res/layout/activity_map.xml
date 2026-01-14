@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.main.MapsActivity">
+    tools:context=".ui.compass.MapsActivity">
 
     <!-- 1. The Fragment that will hold and display the Google Map -->
     <androidx.fragment.app.FragmentContainerView

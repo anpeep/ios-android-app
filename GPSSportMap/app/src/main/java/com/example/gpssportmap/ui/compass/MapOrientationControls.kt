@@ -1,14 +1,18 @@
 package com.example.gpssportmap.ui.compass
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,9 +27,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.gpssportmap.R
 
@@ -37,19 +43,18 @@ import com.example.gpssportmap.R
 @Composable
 fun MapOrientationControls(
     modifier: Modifier = Modifier,
+    azimuth: Float,
     initialMode: MapOrientationMode,
     onModeChange: (MapOrientationMode) -> Unit
 ) {
-    var currentMode by remember { mutableStateOf(MapOrientationMode.COMPASS) }
     var isHidden by remember { mutableStateOf(false) }
-
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             painter = if (isHidden) painterResource(id = R.drawable.ic_eye)
-                      else painterResource(id = R.drawable.ic_hide),
+            else painterResource(id = R.drawable.ic_hide),
             contentDescription = if (isHidden) "Show Controls" else "Hide Controls",
             modifier = Modifier
                 .size(40.dp)
@@ -59,15 +64,12 @@ fun MapOrientationControls(
         )
 
         Spacer(Modifier.height(8.dp))
-
-        // The container for the orientation controls, which animates in and out
         AnimatedVisibility(
             visible = !isHidden,
             enter = fadeIn() + scaleIn(),
             exit = fadeOut() + scaleOut()
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Compass Mode Button
                 OrientationIconButton(
                     iconRes = R.drawable.ic_compass,
                     contentDescription = "Compass Mode",
@@ -75,7 +77,6 @@ fun MapOrientationControls(
                     onClick = { onModeChange(MapOrientationMode.COMPASS) }
                 )
                 Spacer(Modifier.height(12.dp))
-                // North-Up Mode Button
                 OrientationIconButton(
                     iconRes = R.drawable.ic_north,
                     contentDescription = "North-Up Mode",
@@ -83,7 +84,6 @@ fun MapOrientationControls(
                     onClick = { onModeChange(MapOrientationMode.NORTH) }
                 )
                 Spacer(Modifier.height(12.dp))
-                // Center Lock Mode Button
                 OrientationIconButton(
                     iconRes = R.drawable.ic_center,
                     contentDescription = "Center Lock Mode",
@@ -91,22 +91,24 @@ fun MapOrientationControls(
                     onClick = { onModeChange(MapOrientationMode.CENTER) }
                 )
                 Spacer(Modifier.height(12.dp))
-                // User Choose/Pan Mode Button
                 OrientationIconButton(
                     iconRes = R.drawable.ic_user_choose,
                     contentDescription = "Manual Pan Mode",
                     isSelected = initialMode == MapOrientationMode.USER_CHOOSE,
                     onClick = { onModeChange(MapOrientationMode.USER_CHOOSE) }
                 )
+                Spacer(Modifier.height(8.dp))
+
+                CompassView(
+                    azimuth = azimuth,
+                    size = 48.dp
+                )
             }
+
         }
     }
 }
 
-/**
- * A reusable, styled icon button for the orientation controls.
- * It shows a special "glowing" state when selected.
- */
 @Composable
 private fun OrientationIconButton(
     iconRes: Int,
@@ -115,18 +117,14 @@ private fun OrientationIconButton(
     onClick: () -> Unit
 ) {
     val backgroundColor = if (isSelected) {
-        // Distinctive color for the selected item's background
         MaterialTheme.colorScheme.primary
     } else {
-        // Default background
         MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
     }
 
     val iconColor = if (isSelected) {
-        // High-contrast icon color when selected
         MaterialTheme.colorScheme.onPrimary
     } else {
-        // Default icon color
         MaterialTheme.colorScheme.onSurface
     }
 
@@ -143,23 +141,34 @@ private fun OrientationIconButton(
             .padding(12.dp)
     )
 }
-// A preview to see the component in isolation in Android Studio
-@Preview(showBackground = true, name = "Interactive Preview")
-@Composable
-fun PreviewMapOrientationControls() {
-    // 1. Create a state variable *inside* the preview
-    var selectedMode by remember { mutableStateOf(MapOrientationMode.COMPASS) }
 
-    MapOrientationControls(
-        modifier = Modifier.padding(16.dp),
-        // 2. Pass the state variable to the component
-        initialMode = selectedMode,
-        // 3. Update the state variable when the callback is invoked
-        onModeChange = { newMode ->
-            selectedMode = newMode
-            println("Selected mode: $newMode")
-        }
+@Composable
+fun CompassView(
+    azimuth: Float,
+    modifier: Modifier = Modifier, // <-- ADD THIS PARAMETER
+    size: Dp = 38.dp
+) {
+
+    val smoothAzimuth by animateFloatAsState(
+        targetValue = azimuth,
+        label = "compassAnim"
     )
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .background(Color(0xAA000000), CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.ic_compass),
+            contentDescription = "Compass",
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(6.dp)
+                .rotate(-smoothAzimuth)
+        )
+    }
 }
 
 enum class MapOrientationMode {
